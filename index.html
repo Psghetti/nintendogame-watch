@@ -1110,10 +1110,26 @@
     min-height: 200px;
   }
   @media (max-width: 760px) {
-    .gw-frame-outer { margin-left: -12px; margin-right: -12px; padding: 24px 20px 24px 20px; }
-    .gw-frame-bezel { padding: 14px; grid-template-columns: 1fr; gap: 14px; }
-    .gw-side-panel  { max-width: 220px; margin: 0 auto; padding: 0; }
-    .gw-screen-wrap { padding: 18px 14px 14px 18px; }
+    /* Mobile: stretch the device frame edge-to-edge (negative -24 px
+       margins cancel the .container's 24 px horizontal padding so the
+       frame touches both viewport edges), drop the rounded corners on
+       the outer red shell since they'd sit off-screen anyway, and hide
+       the entire side panel (logo + Mr. Game & Watch + Spirit cards) —
+       on a phone that column would otherwise stack ABOVE the screen and
+       push the actual catalog down by half a viewport. */
+    .gw-frame-outer {
+      margin: 8px -24px 16px;
+      border-radius: 0;
+      padding: 28px 22px 24px 28px;
+      box-shadow: none;
+    }
+    .gw-frame-bezel {
+      padding: 10px;
+      grid-template-columns: 1fr;
+      gap: 0;
+    }
+    .gw-side-panel  { display: none; }
+    .gw-screen-wrap { padding: 22px 16px 16px 22px; }
   }
 
   footer { padding: 40px 0 56px; color: var(--muted); border-top: 1px solid var(--line); margin-top: 80px; }
