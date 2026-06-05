@@ -1,0 +1,61 @@
+# =====================================================================
+# nintendogame.watch — whitelist-style .gitignore.
+#
+# Ignore EVERYTHING by default, then explicitly un-ignore the files
+# needed to serve the site over GitHub Pages. Source images, build
+# scripts, drafts, and the file:// fallback bundle (images_b64.js) all
+# stay out of the public repo.
+# =====================================================================
+
+# ---- ignore everything by default ----
+*
+*/
+
+# ---- but DO include these ----
+!.gitignore
+!README.md
+!index.html
+!404.html
+!images_b64.json
+
+# Favicon set (every file is referenced — see <head> + site.webmanifest)
+!FavIcon/
+!FavIcon/favicon.ico
+!FavIcon/favicon.svg
+!FavIcon/favicon-96x96.png
+!FavIcon/apple-touch-icon.png
+!FavIcon/web-app-manifest-192x192.png
+!FavIcon/web-app-manifest-512x512.png
+!FavIcon/site.webmanifest
+
+# Game & Watch device-frame tiles (referenced via CSS background-image)
+!frame/
+!frame/ext_n.jpg
+!frame/ext_s.jpg
+!frame/ext_e.jpg
+!frame/ext_w.jpg
+!frame/ext_nw.jpg
+!frame/ext_ne.jpg
+!frame/ext_sw.jpg
+!frame/ext_se.jpg
+!frame/int_n.jpg
+!frame/int_s.jpg
+!frame/int_e.jpg
+!frame/int_w.jpg
+!frame/int_nw.jpg
+!frame/int_ne.jpg
+!frame/int_sw.jpg
+!frame/int_se.jpg
+
+# Inline-referenced standalone images (every other image is baked into
+# images_b64.json — these specific ones are pulled by <img src="...">)
+!images/
+!images/Game_and_watch_logo.svg
+!images/mr-gameandwatch.png
+!images/ball-spirit.webp
+!images/fire-spirit.webp
+!images/fire-attack-spirit.webp
+!images/chef-spirit.webp
+!images/lion-spirit.webp
+!images/judge-spirit.webp
+!images/parachute-spirit.webp

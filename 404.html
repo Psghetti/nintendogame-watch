@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>404 · You've landed in the wrong place — NintendoGame.Watch</title>
+<link rel="icon" type="image/svg+xml" href="./FavIcon/favicon.svg">
+<link rel="icon" type="image/x-icon" href="./FavIcon/favicon.ico">
+<meta name="theme-color" content="#0a0e14">
+<style>
+  :root {
+    --bg-0: #0a0e14;
+    --bg-1: #11161f;
+    --bg-2: #1a212e;
+    --line: #2a3242;
+    --text: #e6ebf2;
+    --muted: #8a9196;
+    --accent: #9be15d;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background:
+      radial-gradient(900px 600px at 50% 30%, rgba(155,225,93,.06), transparent 70%),
+      var(--bg-0);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 24px;
+  }
+  .card {
+    max-width: 580px;
+    width: 100%;
+    text-align: center;
+    padding: 36px 32px 40px;
+    border: 1px solid var(--line);
+    border-radius: 22px;
+    background: linear-gradient(180deg, var(--bg-2), var(--bg-1));
+    box-shadow: 0 30px 80px -20px rgba(0,0,0,.7);
+  }
+  .parachute {
+    width: 220px; height: auto;
+    display: block;
+    margin: 0 auto 14px;
+    /* Spirit silhouette is solid black on transparent — flip to white-ish
+       so it reads on the dark card background. */
+    filter: invert(.92) drop-shadow(0 12px 24px rgba(0,0,0,.5));
+    animation: drift 4s ease-in-out infinite;
+  }
+  @keyframes drift {
+    0%, 100% { transform: translateY(0) rotate(-2deg); }
+    50%      { transform: translateY(8px) rotate(2deg); }
+  }
+  .eyebrow {
+    font-size: 11px;
+    letter-spacing: .25em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 10px;
+    font-weight: 700;
+  }
+  h1 {
+    font-size: 28px;
+    margin: 0 0 12px;
+    letter-spacing: -.01em;
+    line-height: 1.2;
+  }
+  p {
+    color: var(--muted);
+    line-height: 1.6;
+    font-size: 14px;
+    margin: 0 0 22px;
+    max-width: 420px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .btn-row {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  a.btn {
+    display: inline-block;
+    padding: 12px 22px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-decoration: none;
+    transition: transform .15s, box-shadow .15s, border-color .15s, background .15s;
+  }
+  a.btn-primary {
+    background: var(--accent);
+    color: #0a0e14;
+    border: 1px solid rgba(255,255,255,.3);
+    box-shadow: 0 8px 24px -8px rgba(155,225,93,.55);
+  }
+  a.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 12px 30px -10px rgba(155,225,93,.7); }
+  a.btn-ghost {
+    background: rgba(255,255,255,.04);
+    color: var(--text);
+    border: 1px solid var(--line);
+  }
+  a.btn-ghost:hover { border-color: #3a455c; background: rgba(255,255,255,.07); }
+  .code {
+    margin-top: 22px;
+    font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+    font-size: 11px;
+    letter-spacing: .25em;
+    color: var(--muted);
+    opacity: .65;
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <img class="parachute" src="./images/parachute-spirit.webp" alt="Parachute spirit drifting off-course">
+    <div class="eyebrow">404 · page not found</div>
+    <h1>You have landed in the wrong place.</h1>
+    <p>The page you were looking for doesn't exist on NintendoGame.Watch — it may have moved, or the link may be off by a character. Tap below to drift back to the catalog.</p>
+    <div class="btn-row">
+      <a class="btn btn-primary" href="./">Back to the catalog</a>
+      <a class="btn btn-ghost" href="./#/series">Browse series</a>
+    </div>
+    <div class="code">ERROR · PARACHUTE · PR-21</div>
+  </div>
+</body>
+</html>
