@@ -2537,6 +2537,18 @@
           </section>
 
           <section class="vault-section">
+            <label style="display:block; font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--muted); margin-bottom:6px;">Lost your code? <span style="text-transform:none; letter-spacing:0; color:var(--muted); font-weight:400;">(email recovery)</span></label>
+            <p style="color:var(--muted); font-size:12px; margin:0 0 10px; line-height:1.5;">
+              If you saved a recovery email against a vault, enter that address and we'll mail the code to it. Pasting the received code into <em>Switch to a different vault</em> above gives you back in.
+            </p>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <input id="vault-recover-input" type="email" placeholder="you@example.com" style="flex:1; padding:10px 12px; border-radius:10px; background:rgba(255,255,255,.03); border:1px solid var(--line); color:var(--text); font-size:13px;">
+              <button class="btn-tiny" onclick="recoverByEmail()">Send recovery</button>
+            </div>
+            <div id="vault-recover-msg" style="margin-top:8px; font-size:12px; color:var(--muted); min-height:18px;"></div>
+          </section>
+
+          <section class="vault-section">
             <label style="display:block; font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--muted); margin-bottom:6px;">Rotate access code</label>
             <p style="color:var(--muted); font-size:12px; margin:0 0 10px; line-height:1.5;">
               Generates a brand-new vault code and replaces the current one. Your data, files, and email stay where they are — only the code that unlocks them changes. <strong style="color:var(--text); font-weight:700;">Save the new code immediately</strong> — there's no recovery if you lose it.
@@ -4856,6 +4868,8 @@ function openVaultModal() {
   $('#vault-email-input').value = '';
   $('#vault-email-msg').textContent = '';
   $('#vault-email-msg').style.color = 'var(--muted)';
+  const recoverInput = $('#vault-recover-input'); if (recoverInput) recoverInput.value = '';
+  const recoverMsg   = $('#vault-recover-msg');   if (recoverMsg)   { recoverMsg.textContent = ''; recoverMsg.style.color = 'var(--muted)'; }
   const shareMsgEl = $('#vault-share-msg'); if (shareMsgEl) { shareMsgEl.textContent = ''; shareMsgEl.style.color = 'var(--muted)'; }
   const backupMsgEl = $('#vault-backup-msg'); if (backupMsgEl) { backupMsgEl.textContent = ''; backupMsgEl.style.color = 'var(--muted)'; }
   const backupProgEl = $('#vault-backup-progress'); if (backupProgEl) backupProgEl.style.display = 'none';
@@ -5096,10 +5110,46 @@ async function saveVaultEmail() {
   msg.style.color = 'var(--muted)';
   const res = await vaultSetEmail(email);
   if (res.ok) {
-    msg.textContent = email ? 'Saved — you can recover via ' + email + ' once recovery sending is wired.' : 'Recovery email cleared.';
+    msg.textContent = email ? 'Saved — you can recover via ' + email + ' if you ever lose your code.' : 'Recovery email cleared.';
     msg.style.color = 'var(--accent)';
   } else {
     msg.textContent = 'Save failed: ' + res.error;
+    msg.style.color = '#f08a5d';
+  }
+}
+
+/* Email recovery — calls the recover-vault Edge Function. Always shows a
+   generic success message regardless of whether the email actually
+   matches a vault, so the page can't be used to enumerate registered
+   addresses. */
+async function recoverByEmail() {
+  const input = $('#vault-recover-input');
+  const msg   = $('#vault-recover-msg');
+  if (!input) return;
+  const email = (input.value || '').trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    msg.textContent = 'Enter a valid email address.';
+    msg.style.color = '#f08a5d';
+    return;
+  }
+  if (!supa) {
+    msg.textContent = 'Supabase not connected.';
+    msg.style.color = '#f08a5d';
+    return;
+  }
+  msg.textContent = 'Sending…';
+  msg.style.color = 'var(--muted)';
+  try {
+    const { data, error } = await supa.functions.invoke('recover-vault', {
+      body: { email },
+    });
+    if (error) throw error;
+    if (data && data.ok === false) throw new Error(data.error || 'Recovery failed');
+    msg.innerHTML = '<strong style="color:var(--accent)">Sent.</strong> If a vault is registered to this email, you\'ll have it within a minute. Check spam if it doesn\'t arrive.';
+    msg.style.color = 'var(--muted)';
+    input.value = '';
+  } catch (e) {
+    msg.textContent = 'Recovery failed: ' + (e.message || e);
     msg.style.color = '#f08a5d';
   }
 }
