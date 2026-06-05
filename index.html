@@ -119,6 +119,22 @@
     margin: 0 8px;
     flex: 0 0 auto;
   }
+  /* Burger button — hidden on desktop, shown on mobile to open the
+     collapsed nav dropdown. */
+  .nav-burger {
+    display: none;
+    background: rgba(255,255,255,.04);
+    border: 1px solid var(--line);
+    color: var(--text);
+    width: 42px; height: 42px;
+    border-radius: 10px;
+    cursor: pointer;
+    align-items: center; justify-content: center;
+    flex: 0 0 auto;
+    transition: background .15s, border-color .15s;
+  }
+  .nav-burger:hover { background: rgba(255,255,255,.07); border-color: #3a455c; }
+  .nav-burger svg { display: block; }
   .nav-link {
     appearance: none; background: transparent; border: 0;
     color: var(--muted); padding: 9px 14px; border-radius: 10px;
@@ -1130,6 +1146,38 @@
     }
     .gw-side-panel  { display: none; }
     .gw-screen-wrap { padding: 22px 16px 16px 22px; }
+    /* Nav: collapse the inline link bar into a burger-triggered
+       dropdown. Brand subtitle hides too — saves a row of vertical
+       space and prevents the brand from elbowing the burger off-screen
+       on the narrowest phones. */
+    .container.nav { position: relative; }
+    .brand-sub     { display: none; }
+    .nav-divider   { display: none; }
+    .nav-burger    { display: inline-flex; }
+    .nav-links {
+      display: none;
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 8px;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 2px;
+      padding: 8px;
+      background: linear-gradient(180deg, var(--bg-2), var(--bg-1));
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: 0 24px 50px -14px rgba(0,0,0,.7);
+      min-width: 200px;
+      z-index: 200;
+    }
+    .nav-links.open { display: flex; }
+    .nav-links .nav-link { justify-content: flex-start; padding: 9px 12px; }
+    /* Loading overlay sizing — the inner card was authored for desktop
+       (260 px fixed bar, 28×40 padding) and could push off the side of
+       a narrow viewport. Constrain it and let the progress bar fill the
+       available width instead. */
+    .loading-card { padding: 28px 24px; width: calc(100% - 32px); max-width: 340px; }
+    .loading-bar  { width: 100%; max-width: 260px; }
   }
 
   footer { padding: 40px 0 56px; color: var(--muted); border-top: 1px solid var(--line); margin-top: 80px; }
@@ -2304,7 +2352,10 @@
         <div class="brand-sub">A Fan Tribute · Game &amp; Watch Archive</div>
       </div>
     </a>
-    <nav class="nav-links">
+    <button class="nav-burger" id="nav-burger" onclick="toggleNavMenu(event)" aria-label="Open menu" aria-expanded="false">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+    </button>
+    <nav class="nav-links" id="nav-links">
       <button class="nav-link" data-route="/" onclick="route('/')">Home</button>
       <button class="nav-link" data-route="/series" onclick="route('/series')">Series</button>
       <button class="nav-link" data-route="/collection" onclick="route('/collection')">Collection</button>
@@ -6145,6 +6196,35 @@ function setViewMode(m) {
   updateViewModeButton();
   render();
 }
+/* Mobile burger menu — toggles the collapsed nav-links dropdown.
+   Auto-closes on link click and on clicks outside the dropdown. */
+function toggleNavMenu(ev) {
+  if (ev) ev.stopPropagation();
+  const nav = document.getElementById('nav-links');
+  const btn = document.getElementById('nav-burger');
+  if (!nav) return;
+  const open = nav.classList.toggle('open');
+  if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+document.addEventListener('click', e => {
+  const nav = document.getElementById('nav-links');
+  const btn = document.getElementById('nav-burger');
+  if (!nav || !nav.classList.contains('open')) return;
+  // Clicking the burger itself toggles via its own onclick — leave it.
+  if (e.target.closest('#nav-burger')) return;
+  // Clicking a link inside the dropdown: close after the click runs.
+  if (e.target.closest('.nav-link')) {
+    nav.classList.remove('open');
+    if (btn) btn.setAttribute('aria-expanded', 'false');
+    return;
+  }
+  // Any other click outside the dropdown closes it.
+  if (!nav.contains(e.target)) {
+    nav.classList.remove('open');
+    if (btn) btn.setAttribute('aria-expanded', 'false');
+  }
+});
+
 function toggleViewMode() {
   const idx = VIEW_MODES.indexOf(viewMode);
   setViewMode(VIEW_MODES[(idx + 1) % VIEW_MODES.length]);
