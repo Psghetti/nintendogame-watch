@@ -1172,12 +1172,14 @@
     }
     .nav-links.open { display: flex; }
     .nav-links .nav-link { justify-content: flex-start; padding: 9px 12px; }
-    /* Loading overlay sizing — the inner card was authored for desktop
-       (260 px fixed bar, 28×40 padding) and could push off the side of
-       a narrow viewport. Constrain it and let the progress bar fill the
-       available width instead. */
-    .loading-card { padding: 28px 24px; width: calc(100% - 32px); max-width: 340px; }
-    .loading-bar  { width: 100%; max-width: 260px; }
+    /* Loading shell on mobile: just drop the box-shadow / rounded
+       corners overhead. The silver-series aspect ratio + width cap
+       defined in the default rule below already keeps it landscape
+       and viewport-bounded — no full-screen stretch here. */
+    .loading-shell.gw-frame-outer {
+      border-radius: 14px;
+      box-shadow: none;
+    }
   }
 
   footer { padding: 40px 0 56px; color: var(--muted); border-top: 1px solid var(--line); margin-top: 80px; }
@@ -2070,7 +2072,93 @@
       var(--bg-0);
     display: flex; align-items: center; justify-content: center;
     transition: opacity .35s ease, visibility .35s ease;
+    padding: 16px;
   }
+  /* The loading screen wraps its content in the same Game & Watch device
+     frame (outer red + cream linen bezel + black LCD) used by the main
+     catalog — but sized to mimic a Silver-series G&W's landscape
+     proportions (Ball / Flagman / Vermin / Fire / Judge are all roughly
+     9:5 — ~124mm × ~69mm). The frame keeps that ratio at any viewport
+     width via aspect-ratio, then bezel + screen stretch via flex so the
+     LCD fills the whole device face. Padding is much slimmer than the
+     catalog frame (no side panel / mascot / spirit cards to fit). */
+  .loading-shell.gw-frame-outer {
+    width: min(560px, calc(100vw - 24px));
+    aspect-ratio: 9 / 5;
+    /* Floor for narrow viewports: aspect 9:5 on a 360-px-wide phone
+       would only yield ~187 px tall, which crushes the loading
+       content. The min-height kicks in only when the aspect-derived
+       height falls below it — the frame just shifts to a slightly
+       less-wide ratio rather than overflowing the screen. */
+    min-height: 220px;
+    margin: 0;
+    padding: 24px 20px 22px 26px;
+    display: flex;
+    flex-direction: column;
+  }
+  .loading-shell .gw-frame-bezel {
+    display: flex;
+    flex-direction: column;
+    /* The base .gw-frame-bezel rule sets align-items: start (grid
+       logo|screen layout). In our flex-column override that pins the
+       LCD to the left edge of the cream linen — switch to centre so
+       the screen keeps its natural content width but sits in the
+       middle of the device face. justify-content centres it on the
+       main (vertical) axis too. */
+    align-items: center;
+    justify-content: center;
+    grid-template-columns: none;
+    gap: 0;
+    padding: 14px;
+    flex: 1 1 auto;
+    min-height: 0;
+    /* Positioning context for the absolutely-placed corner logo. */
+    position: relative;
+  }
+  /* Brushed-silver "Game & Watch" logo plate, pinned to the top-left of
+     the cream linen — mirrors the side-panel logo on the catalog frame
+     but downscaled to fit the loading-shell's smaller bezel. Same
+     three-layer background recipe as .gw-logo. */
+  .gw-loading-logo {
+    position: absolute;
+    /* Offsets measured from the bezel's padding edge (the inside of
+       the red frame). Absolute positioning skips the bezel's own
+       padding, so we add explicit insets here for breathing room
+       between the red frame and the logo plate. */
+    top: 14px;
+    left: 18px;
+    width: 96px;
+    padding: 7px 10px;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.22) 0%, rgba(255,255,255,0) 35%, rgba(0,0,0,.08) 100%),
+      repeating-linear-gradient(90deg,
+        rgba(255,255,255,.07) 0px, rgba(255,255,255,.07) 1px,
+        rgba(0,0,0,.04) 1px,    rgba(0,0,0,.04) 2px),
+      linear-gradient(180deg, #cfcfcf 0%, #a4a4a4 100%);
+    border: 2px solid #1a1a1a;
+    border-radius: 3px;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.3), 0 1px 2px rgba(0,0,0,.3);
+  }
+  .gw-loading-logo img { width: 100%; height: auto; display: block; }
+  .loading-shell .gw-frame-screen {
+    padding: 26px 22px 24px;
+    min-height: 0;
+    /* Don't flex-grow — the bezel's justify-content/align-items
+       handle centring; let the screen size to its content. */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  .loading-shell .loading-card { padding: 0; }
+  /* Compact the loading content inside the squat silver-aspect screen
+     so the spinner + title + sub + bar + ready text all fit comfortably
+     even on ~360px-wide phones. */
+  .loading-shell .loading-spinner { width: 40px; height: 40px; margin: 0 auto 10px; border-width: 3px; }
+  .loading-shell .loading-title   { font-size: 12px; }
+  .loading-shell .loading-sub     { font-size: 10px; margin-top: 6px; }
+  .loading-shell .loading-bar     { width: 200px; max-width: 100%; margin: 12px auto 6px; }
+  .loading-shell .loading-stat    { font-size: 10px; margin-top: 4px; }
   #loading-overlay.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
   .loading-card { text-align: center; padding: 28px 40px; }
   .loading-spinner {
@@ -2329,12 +2417,21 @@
 </svg>
 
 <div id="loading-overlay">
-  <div class="loading-card">
-    <div class="loading-spinner"></div>
-    <div class="loading-title">NINTENDOGAME.WATCH</div>
-    <div class="loading-sub">Loading photo archive…</div>
-    <div class="loading-bar"><div class="loading-bar-fill" id="loading-bar-fill"></div></div>
-    <div class="loading-stat" id="loading-stat">Connecting…</div>
+  <div class="loading-shell gw-frame-outer">
+    <div class="gw-frame-bezel">
+      <div class="gw-loading-logo" aria-hidden="true">
+        <img src="./images/Game_and_watch_logo.svg" alt="">
+      </div>
+      <div class="gw-frame-screen">
+        <div class="loading-card">
+          <div class="loading-spinner"></div>
+          <div class="loading-title">NINTENDOGAME.WATCH</div>
+          <div class="loading-sub">Loading photo archive…</div>
+          <div class="loading-bar"><div class="loading-bar-fill" id="loading-bar-fill"></div></div>
+          <div class="loading-stat" id="loading-stat">Connecting…</div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
