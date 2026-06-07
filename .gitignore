@@ -18,6 +18,11 @@
 !404.html
 !images_b64.json
 
+# GitHub Actions — Supabase keepalive cron (see workflow header).
+!.github/
+!.github/workflows/
+!.github/workflows/keepalive.yml
+
 # Favicon set (every file is referenced — see <head> + site.webmanifest)
 !FavIcon/
 !FavIcon/favicon.ico

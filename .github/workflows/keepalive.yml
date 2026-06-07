@@ -1,0 +1,34 @@
+# =====================================================================
+# Supabase keepalive
+#
+# Supabase's free tier pauses a project after 7 days of inactivity. The
+# site doesn't have enough traffic yet to guarantee that floor, so this
+# workflow pings the project's REST endpoint on a schedule — any
+# authenticated request counts as activity and resets the inactivity
+# timer.
+#
+# Cron runs every 5 days at 12:00 UTC, which leaves slack for one
+# missed/delayed Actions run before the 7-day pause threshold.
+# workflow_dispatch is included so the ping can be triggered manually
+# from the Actions tab whenever needed.
+#
+# Requires repo secret: SUPABASE_ANON_KEY (Settings → Secrets and
+# variables → Actions). Same anon key that's embedded in index.html.
+# =====================================================================
+
+name: Supabase keepalive
+
+on:
+  schedule:
+    - cron: '0 12 */5 * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST
+        run: |
+          curl -fsS "https://uhnqgivmznafzdhnodpl.supabase.co/rest/v1/" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}"
