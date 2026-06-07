@@ -28,7 +28,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Ping Supabase REST
+        env:
+          KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
-          curl -fsS "https://uhnqgivmznafzdhnodpl.supabase.co/rest/v1/" \
-            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}"
+          # Sanity-check the secret is actually set (don't print its value).
+          if [ -z "$KEY" ]; then
+            echo "::error::SUPABASE_ANON_KEY repository secret is empty or unset"
+            exit 1
+          fi
+          echo "Anon key configured: ${#KEY} chars long, prefix '${KEY:0:6}…'"
+
+          # We don't use -f here on purpose. Any HTTP response (200, 401,
+          # 404, whatever) means Supabase's gateway logged a request,
+          # which is all we need for the inactivity timer to reset. Only
+          # actual network/connection failures should fail the step.
+          STATUS=$(curl -sS -o /tmp/body -w "%{http_code}" \
+            "https://uhnqgivmznafzdhnodpl.supabase.co/rest/v1/" \
+            -H "apikey: $KEY" \
+            -H "Authorization: Bearer $KEY")
+          echo "HTTP status: $STATUS"
+          echo "Response body (first 500 bytes):"
+          head -c 500 /tmp/body || true
+          echo
+          case "$STATUS" in
+            [1-5][0-9][0-9]) echo "Supabase responded — keepalive ping accepted." ;;
+            *) echo "::error::No HTTP response from Supabase"; exit 1 ;;
+          esac
