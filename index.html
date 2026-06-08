@@ -1294,9 +1294,49 @@
   .view-mode-toggle-large:hover .view-mode-label { color: var(--text); }
   .view-mode-toggle-large.boxart-mode   .view-mode-label { color: var(--accent-2); }
   .view-mode-toggle-large.boxart3d-mode .view-mode-label { color: var(--accent-3); }
-  @media (max-width: 540px) {
-    .chip-toggle-group { flex-direction: column; align-items: stretch; }
-    .view-mode-toggle-large { width: 100%; }
+  /* Mobile-only compression of the filter bar (desktop is unchanged).
+     Two changes that genuinely save space WITHOUT hiding any series
+     filter behind a scroll:
+       1. View-mode toggle becomes a compact icon-only square inline
+          with the search input (label hidden) instead of a 64 px
+          full-width block on its own row — saves ~80 px.
+       2. Series chips wrap onto fewer lines via tighter padding /
+          font-size — all chips remain visible at a glance. */
+  @media (max-width: 760px) {
+    .filter-bar {
+      padding: 10px;
+      gap: 8px;
+    }
+    .chip-toggle-group { display: contents; }
+    .filter-bar .search {
+      order: 1;
+      flex: 1 1 auto;
+      min-width: 0;
+      padding: 6px 10px;
+    }
+    .view-mode-toggle-large {
+      order: 2;
+      width: auto;
+      min-height: 0;
+      flex: 0 0 auto;
+      flex-direction: row;
+      gap: 6px;
+      padding: 8px 12px;
+    }
+    .view-mode-toggle-large .view-mode-label { display: none; }
+    .view-mode-toggle-large .view-mode-icon  { font-size: 20px; }
+    /* Force chip row onto its own line below the search/toggle row. */
+    #chip-row {
+      order: 3;
+      flex: 1 1 100% !important;     /* inline style sets flex:1; force full-row */
+      gap: 6px !important;
+    }
+    /* Compact chips so the wrap fits in 1–2 lines instead of 3. */
+    #chip-row .chip {
+      padding: 4px 10px;
+      font-size: 11px;
+      letter-spacing: .02em;
+    }
   }
 
   /* Collection feature */
