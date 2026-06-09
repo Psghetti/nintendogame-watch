@@ -1449,6 +1449,99 @@
   }
   .manual-badge svg { display: block; pointer-events: none; }
 
+  /* Drawer title row — h2 left-justified, rarity badge pushed to the
+     right via margin-left: auto, mirroring the Play / Manual buttons
+     that already live in the top-right of the drawer image area. */
+  .drawer-title-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin: 0 0 6px;
+  }
+  .drawer-title-row h2 { margin: 0; }
+  .drawer-title-row .rarity-tip-host { margin-left: auto; }
+
+  /* Drawer-variant rarity badge — slightly larger than the card chip
+     so it reads at title scale. Same tier colour palette. */
+  .rarity-badge-drawer {
+    padding: 5px 12px;
+    font-size: 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(0,0,0,.2);
+    cursor: help;
+  }
+
+  /* Hover-popover container around the drawer rarity badge. The badge
+     itself remains a simple chip; the legend table inside .rarity-tip
+     is hidden by default and reveals on hover/focus. */
+  .rarity-tip-host {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+  }
+  .rarity-tip {
+    display: none;
+    position: absolute;
+    top: calc(100% + 10px);
+    /* Right-align the popover so it stays inside the drawer when the
+       badge sits on the far right of the title row. */
+    right: 0;
+    left: auto;
+    z-index: 60;
+    min-width: 320px;
+    padding: 12px 14px 10px;
+    background: var(--bg-2);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    box-shadow: 0 22px 50px -14px rgba(0,0,0,.7);
+    color: var(--text);
+    font-size: 12px;
+    letter-spacing: 0;
+    text-transform: none;
+    pointer-events: none;
+  }
+  .rarity-tip-host:hover .rarity-tip,
+  .rarity-tip-host:focus-within .rarity-tip { display: block; }
+  .rarity-tip-title {
+    font-size: 10px; letter-spacing: .16em; text-transform: uppercase;
+    font-weight: 800; color: var(--muted); margin-bottom: 8px;
+  }
+  .rarity-tip table { width: 100%; border-collapse: collapse; }
+  .rarity-tip td {
+    padding: 4px 10px 4px 0; vertical-align: middle;
+    font-size: 12px; line-height: 1.45; white-space: nowrap;
+    border: 0;
+  }
+  .rarity-tip td:last-child { padding-right: 0; }
+  .rarity-tip .rarity-tip-range   { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .rarity-tip .rarity-tip-meaning { color: var(--muted); }
+  .rarity-tip tr.is-active td {
+    font-weight: 700;
+    color: var(--text);
+  }
+  .rarity-tip tr.is-active .rarity-tip-range,
+  .rarity-tip tr.is-active .rarity-tip-meaning { color: var(--text); }
+  .rarity-tip .rarity-swatch {
+    display: inline-block;
+    width: 11px; height: 11px;
+    border-radius: 50%;
+    margin-right: 8px;
+    vertical-align: -1px;
+    border: 1px solid rgba(0,0,0,.25);
+  }
+  /* Tier colour palette — cool → warm gradient from Common (least rare)
+     to Ultra Rare (most rare). Light backgrounds use dark text, dark
+     backgrounds get white text for AA contrast. */
+  .rarity-common                { background: #b8c0cb; }
+  .rarity-uncommon              { background: #9bc6e8; }
+  .rarity-sought-after          { background: #6fa3d8; color: #fff; }
+  .rarity-very-sought-after     { background: #4fa5a5; color: #fff; }
+  .rarity-highly-collectible    { background: #9ed27a; }
+  .rarity-extremely-collectible { background: #e8c34a; }
+  .rarity-super-rare            { background: #e8884a; color: #fff; }
+  .rarity-ultra-rare            { background: #d35a72; color: #fff; }
+
   .drawer-collected {
     display: flex; align-items: center; gap: 10px;
     padding: 12px 14px;
@@ -3431,6 +3524,109 @@ const DEVICE_IMAGES = {
   'prototype-tetris-jr': ['PrototypeTetrisJr1']
 };
 
+// =====================================================================
+// RARITY  —  Per-device collector rarity, sourced from
+//            RarityGuide.com's Game & Watch list (8-tier scale, 0–100 %).
+//            Used to render the rarity badge on the device card and a
+//            coloured pill in the device drawer.
+//
+// Devices NOT in this map (the three 35th-anniversary reissues and the
+// Tetris Jr. prototype) just don't show a rarity — by design, since
+// "rarity" for a modern mass-produced reissue or a one-of-one
+// prototype isn't on the same scale as the original 1980–1991 units.
+//
+// RarityGuide also lists Judge (Purple, Silver), Headache (Gold) and
+// Balloon Fight (New Wide Screen) — none currently in this catalogue,
+// so those entries are unused. Their Famicom-only Super Mario Bros.
+// (98 %, Ultra Rare) maps to our 'other-super-mario-bros-special' id.
+// =====================================================================
+const RARITY = {
+  // Silver (1980)
+  'silver-ball':                       { pct: 74, tier: 'Extremely Collectible' },
+  'silver-flagman':                    { pct: 94, tier: 'Ultra Rare' },
+  'silver-vermin':                     { pct: 73, tier: 'Extremely Collectible' },
+  'silver-fire':                       { pct: 72, tier: 'Extremely Collectible' },
+  'silver-judge':                      { pct: 73, tier: 'Extremely Collectible' },
+  // Gold (1981)
+  'gold-manhole':                      { pct: 54, tier: 'Very Sought After' },
+  'gold-helmet':                       { pct: 56, tier: 'Very Sought After' },
+  'gold-lion':                         { pct: 66, tier: 'Highly Collectible' },
+  // Wide Screen (1981)
+  'widescreen-parachute':              { pct: 51, tier: 'Very Sought After' },
+  'widescreen-octopus':                { pct: 51, tier: 'Very Sought After' },
+  'widescreen-popeye':                 { pct: 44, tier: 'Sought After' },
+  'widescreen-chef':                   { pct: 72, tier: 'Extremely Collectible' },
+  'widescreen-mickey-mouse':           { pct: 66, tier: 'Highly Collectible' },
+  'widescreen-egg':                    { pct: 84, tier: 'Super Rare' },
+  'widescreen-fire':                   { pct: 46, tier: 'Sought After' },
+  'widescreen-turtle-bridge':          { pct: 71, tier: 'Extremely Collectible' },
+  'widescreen-fire-attack':            { pct: 65, tier: 'Highly Collectible' },
+  'widescreen-snoopy-tennis':          { pct: 67, tier: 'Highly Collectible' },
+  // New Wide Screen (1982–1991) — uses the same 'widescreen-' id prefix
+  'widescreen-donkey-kong-jr':         { pct: 72, tier: 'Extremely Collectible' },
+  'widescreen-marios-cement-factory':  { pct: 38, tier: 'Uncommon' },
+  'widescreen-manhole':                { pct: 67, tier: 'Highly Collectible' },
+  'widescreen-tropical-fish':          { pct: 81, tier: 'Super Rare' },
+  'widescreen-super-mario-bros':       { pct: 53, tier: 'Very Sought After' },
+  'widescreen-climber':                { pct: 80, tier: 'Extremely Collectible' },
+  'widescreen-mario-the-juggler':      { pct: 91, tier: 'Ultra Rare' },
+  // Multi Screen
+  'multiscreen-oil-panic':             { pct: 62, tier: 'Highly Collectible' },
+  'multiscreen-donkey-kong':           { pct: 49, tier: 'Sought After' },
+  'multiscreen-mickey-donald':         { pct: 64, tier: 'Highly Collectible' },
+  'multiscreen-green-house':           { pct: 68, tier: 'Highly Collectible' },
+  'multiscreen-donkey-kong-ii':        { pct: 50, tier: 'Sought After' },
+  'multiscreen-mario-bros':            { pct: 48, tier: 'Sought After' },
+  'multiscreen-rain-shower':           { pct: 76, tier: 'Extremely Collectible' },
+  'multiscreen-lifeboat':              { pct: 68, tier: 'Highly Collectible' },
+  'multiscreen-pinball':               { pct: 50, tier: 'Sought After' },
+  'multiscreen-black-jack':            { pct: 28, tier: 'Common' },
+  'multiscreen-squish':                { pct: 59, tier: 'Very Sought After' },
+  'multiscreen-bomb-sweeper':          { pct: 65, tier: 'Highly Collectible' },
+  'multiscreen-safebuster':            { pct: 55, tier: 'Very Sought After' },
+  'multiscreen-gold-cliff':            { pct: 48, tier: 'Sought After' },
+  'multiscreen-zelda':                 { pct: 70, tier: 'Highly Collectible' },
+  // Tabletop
+  'tabletop-snoopy':                   { pct: 84, tier: 'Super Rare' },
+  'tabletop-popeye':                   { pct: 80, tier: 'Extremely Collectible' },
+  'tabletop-donkey-kong-jr':           { pct: 78, tier: 'Extremely Collectible' },
+  'tabletop-marios-cement-factory':    { pct: 77, tier: 'Extremely Collectible' },
+  // Panorama
+  'panorama-donkey-kong-jr':           { pct: 80, tier: 'Extremely Collectible' },
+  'panorama-mickey-mouse':             { pct: 84, tier: 'Super Rare' },
+  'panorama-snoopy':                   { pct: 81, tier: 'Super Rare' },
+  'panorama-popeye':                   { pct: 74, tier: 'Extremely Collectible' },
+  'panorama-marios-bombs-away':        { pct: 81, tier: 'Super Rare' },
+  'panorama-donkey-kong-circus':       { pct: 82, tier: 'Super Rare' },
+  // SuperColor
+  'supercolor-spitball-sparky':        { pct: 81, tier: 'Super Rare' },
+  'supercolor-crab-grab':              { pct: 82, tier: 'Super Rare' },
+  // Micro VS.
+  'microvs-boxing':                    { pct: 30, tier: 'Common' },
+  'microvs-donkey-kong-3':             { pct: 28, tier: 'Common' },
+  'microvs-donkey-kong-hockey':        { pct: 34, tier: 'Uncommon' },
+  // Crystal Screen
+  'crystal-super-mario-bros':          { pct: 81, tier: 'Super Rare' },
+  'crystal-climber':                   { pct: 73, tier: 'Extremely Collectible' },
+  'crystal-balloon-fight':             { pct: 88, tier: 'Super Rare' },
+  // Special — Famicom-only Super Mario Bros. tournament prize (1987)
+  'other-super-mario-bros-special':    { pct: 98, tier: 'Ultra Rare' },
+};
+
+// Map RarityGuide's tier names to CSS classes for colouring the badge
+// and pill. Ordered from least → most rare so the palette steps through
+// a coherent gradient (cool greys → blues → greens → golds → warm reds).
+const RARITY_TIER_CLASS = {
+  'Common':                  'rarity-common',
+  'Uncommon':                'rarity-uncommon',
+  'Sought After':            'rarity-sought-after',
+  'Very Sought After':       'rarity-very-sought-after',
+  'Highly Collectible':      'rarity-highly-collectible',
+  'Extremely Collectible':   'rarity-extremely-collectible',
+  'Super Rare':              'rarity-super-rare',
+  'Ultra Rare':              'rarity-ultra-rare',
+};
+
 const DEVICES = [
   // SILVER
   { id:'silver-ball', name:'Ball', series:'silver', model:'AC-01', released:'1980-04-09', img:'SilverBall1',
@@ -4087,6 +4283,49 @@ function probeModalImage()  { probeImagesIn('#device-modal .device-modal-img'); 
 const UNCOLLECTABLE_SERIES = new Set(['prototype']);
 function isCollectable(d) { return !!d && !UNCOLLECTABLE_SERIES.has(d.series); }
 
+// Rarity helpers — return empty strings for devices not in the RARITY
+// map (reissues, the prototype), so they just don't show a badge.
+//
+// Each tier in the 8-step scale has a one-line meaning that's shown in
+// the legend table on hover; the legend's "active" row is the device's
+// own tier so the viewer can see where this unit sits on the ladder.
+const RARITY_TIER_INFO = [
+  { tier: 'Common',                range: '28–30 %', meaning: 'Easy to find' },
+  { tier: 'Uncommon',              range: '34–38 %', meaning: 'Takes a bit of searching' },
+  { tier: 'Sought After',          range: '44–50 %', meaning: 'Desirable, fewer around' },
+  { tier: 'Very Sought After',     range: '51–59 %', meaning: 'Hard to find now' },
+  { tier: 'Highly Collectible',    range: '62–70 %', meaning: 'Rare, premium prices' },
+  { tier: 'Extremely Collectible', range: '71–80 %', meaning: 'Very rare, top-tier' },
+  { tier: 'Super Rare',            range: '81–88 %', meaning: 'Few known to exist' },
+  { tier: 'Ultra Rare',            range: '91–98 %', meaning: 'Nearly impossible to obtain' },
+];
+
+function rarityTipHTML(activeTier) {
+  const rows = RARITY_TIER_INFO.map(t => {
+    const cls = RARITY_TIER_CLASS[t.tier] || '';
+    const active = t.tier === activeTier ? ' is-active' : '';
+    return `<tr class="${active}">
+      <td><span class="rarity-swatch ${cls}"></span>${t.tier}</td>
+      <td class="rarity-tip-range">${t.range}</td>
+      <td class="rarity-tip-meaning">${t.meaning}</td>
+    </tr>`;
+  }).join('');
+  return `<div class="rarity-tip" role="tooltip">
+    <div class="rarity-tip-title">Rarity scale</div>
+    <table>${rows}</table>
+  </div>`;
+}
+
+function rarityDrawerBadgeHTML(d) {
+  const r = RARITY[d.id];
+  if (!r) return '';
+  const cls = RARITY_TIER_CLASS[r.tier] || '';
+  return `<span class="rarity-tip-host">
+    <span class="rarity-badge rarity-badge-drawer ${cls}">${r.tier} · ${r.pct}%</span>
+    ${rarityTipHTML(r.tier)}
+  </span>`;
+}
+
 function deviceCardHTML(d) {
   const s = seriesById(d.series);
   // Cards prefer the small clean HERO_IMAGES shot (madrigaldesign); fall back
@@ -4245,7 +4484,10 @@ function openDevice(id) {
             ${GAME_SLUGS[d.id] ? `<button class="play-now" onclick="openPlay('${d.id}', event)" title="Play on RetroFab (opens in new tab)" aria-label="Play in new tab"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="11" x2="10" y2="11"/><line x1="8" y1="9" x2="8" y2="13"/><line x1="15" y1="12" x2="15.01" y2="12"/><line x1="18" y1="10" x2="18.01" y2="10"/><path d="M17.32 5H6.68a4 4 0 0 0-3.978 3.59c-.006.052-.01.101-.017.152C2.604 9.416 2 14.456 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.414-1.414A2 2 0 0 1 9.828 16h4.344a2 2 0 0 1 1.414.586L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.545-.604-6.584-.685-7.258C21.166 6.83 19.51 5 17.32 5z"/></svg><span>Play Now!</span></button>` : ''}
             ${MANUALS[d.id] ? `<button class="manual-btn" onclick="openManual('${d.id}', event)" title="View the tricotronic manual scan" aria-label="View manual"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg><span>Manual</span></button>` : ''}
           </div>
-          <h2>${d.name}</h2>
+          <div class="drawer-title-row">
+            <h2>${d.name}</h2>
+            ${rarityDrawerBadgeHTML(d)}
+          </div>
           ${isShareMode
             ? (collected.has(d.id)
                 ? `<div class="share-collected-info"><span class="check">✓</span><span>In the owner's collection</span></div>`
