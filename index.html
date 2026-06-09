@@ -1042,6 +1042,13 @@
   }
   /* Side panel — sits directly on the cream linen device label. */
   .gw-side-panel { padding: 6px 6px 6px 4px; }
+  /* About view is short copy — trim the side panel by hiding the last
+     four spirit mascots so the whole device frame can collapse
+     vertically to match the content. :has() reacts automatically when
+     the active class moves between views, no JS toggle needed. */
+  .gw-frame-bezel:has(#view-about.active) .gw-side-panel .gw-mascot:nth-last-of-type(-n+4) {
+    display: none;
+  }
   .gw-logo {
     /* Brushed-silver plate look, painted from three stacked layers:
        1. top-to-bottom sheen (light at top, slight shadow at bottom)
@@ -2587,10 +2594,10 @@
     </button>
     <nav class="nav-links" id="nav-links">
       <button class="nav-link" data-route="/" onclick="route('/')">Home</button>
-      <button class="nav-link" data-route="/series" onclick="route('/series')">Series</button>
       <button class="nav-link" data-route="/collection" onclick="route('/collection')">Collection</button>
-      <button class="nav-link" onclick="openTimeline()">Timeline</button>
-      <button class="nav-link" onclick="openAbout()">About</button>
+      <button class="nav-link" data-route="/series" onclick="route('/series')">Series</button>
+      <button class="nav-link" data-route="/timeline" onclick="route('/timeline')">Timeline</button>
+      <button class="nav-link" data-route="/about" onclick="route('/about')">About</button>
       <span class="nav-divider" aria-hidden="true"></span>
       <button class="nav-link nav-vault" id="nav-vault-btn" onclick="openVaultModal()" title="Vault — view or switch your access code"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><span class="nav-vault-label">Vault</span></button>
       <button class="nav-link nav-collection" onclick="openMyCollection()" title="My Collection — click to view, copy, or paste your code"><span class="nav-collection-icon">★</span><span class="nav-collection-count" id="nav-collection-count">0</span></button>
@@ -2731,6 +2738,40 @@
       </div>
       <div class="grid" id="device-grid"></div>
       <div id="empty" class="empty" style="display:none;">No units match your filter. Try clearing the search.</div>
+    </div>
+  </section>
+
+  <!-- TIMELINE -->
+  <section class="view" id="view-timeline">
+    <div class="section">
+      <div class="section-head">
+        <div>
+          <div class="section-kicker">Timeline</div>
+          <h2 class="section-title">A decade of Game &amp; Watch</h2>
+          <p class="section-desc">From a single juggler in 1980 to Mario juggling under a moonlit Stage in 1991 — eleven years, ten series, and a small revolution in handheld design.</p>
+        </div>
+      </div>
+      <div class="timeline" id="timeline-list"></div>
+    </div>
+  </section>
+
+  <!-- ABOUT -->
+  <section class="view" id="view-about">
+    <div class="section">
+      <div class="section-head">
+        <div>
+          <div class="section-kicker">About</div>
+          <h2 class="section-title">The Game &amp; Watch, in our words</h2>
+        </div>
+      </div>
+      <div class="article" style="padding: 0; max-width: 760px;">
+        <p>NintendoGame.Watch is a love letter to a small, strange family of handhelds Nintendo built between 1980 and 1991 — a decade in which a games company that mostly made playing cards and toys quietly invented modern portable gaming.</p>
+        <p>The first unit, <b>Ball</b>, slipped out of Japan on the 9th of April 1980. It cost a few thousand yen, ran on watch batteries, and let you keep a juggler from dropping two stiff little balls. It sold a million copies. By the time the line ended in 1991, Nintendo had shipped <b>fifty-nine different models across ten distinct hardware series</b>, and posted somewhere north of forty-three million units sold worldwide.</p>
+        <div class="quote">"Lateral thinking with withered technology." — Gunpei Yokoi's design philosophy. Take old, cheap, well-understood parts; find a brand-new use for them.</div>
+        <h3>The man behind the magic</h3>
+        <p>Gunpei Yokoi joined Nintendo in 1965 as a maintenance engineer. He went on to lead the R&amp;D1 group responsible for the Game &amp; Watch, the Game Boy, and Metroid. The story goes that he watched a bored salaryman on a Shinkansen passing time by tapping the buttons of a calculator, and wondered if you could put a tiny game in the same pocket-sized shell. The Game &amp; Watch is what came out the other side.</p>
+        <p>Yokoi left Nintendo in 1996 and died in a road accident the following year. His fingerprints are still on every handheld Nintendo ships.</p>
+      </div>
     </div>
   </section>
 
@@ -2982,45 +3023,6 @@
         <button class="btn-tiny" id="confirm-cancel-btn" onclick="__confirmResolve(false)">Cancel</button>
         <button class="btn-tiny" id="confirm-ok-btn" onclick="__confirmResolve(true)">Confirm</button>
       </div>
-    </div>
-  </div>
-</div>
-
-<!-- About modal -->
-<div class="overlay" id="about-overlay" onclick="if(event.target===this)closeOverlay('about-overlay')">
-  <div class="modal" role="dialog" aria-modal="true">
-    <div class="modal-head">
-      <div>
-        <div class="modal-sub">About</div>
-        <div class="modal-title">The Game &amp; Watch, in our words</div>
-      </div>
-      <button class="modal-close" onclick="closeOverlay('about-overlay')" aria-label="Close">×</button>
-    </div>
-    <div class="article">
-      <p>NintendoGame.Watch is a love letter to a small, strange family of handhelds Nintendo built between 1980 and 1991 — a decade in which a games company that mostly made playing cards and toys quietly invented modern portable gaming.</p>
-      <p>The first unit, <b>Ball</b>, slipped out of Japan on the 9th of April 1980. It cost a few thousand yen, ran on watch batteries, and let you keep a juggler from dropping two stiff little balls. It sold a million copies. By the time the line ended in 1991, Nintendo had shipped <b>fifty-nine different models across ten distinct hardware series</b>, and posted somewhere north of forty-three million units sold worldwide.</p>
-      <div class="quote">"Lateral thinking with withered technology." — Gunpei Yokoi's design philosophy. Take old, cheap, well-understood parts; find a brand-new use for them.</div>
-      <h3>The man behind the magic</h3>
-      <p>Gunpei Yokoi joined Nintendo in 1965 as a maintenance engineer. He went on to lead the R&amp;D1 group responsible for the Game &amp; Watch, the Game Boy, and Metroid. The story goes that he watched a bored salaryman on a Shinkansen passing time by tapping the buttons of a calculator, and wondered if you could put a tiny game in the same pocket-sized shell. The Game &amp; Watch is what came out the other side.</p>
-      <p>Yokoi left Nintendo in 1996 and died in a road accident the following year. His fingerprints are still on every handheld Nintendo ships.</p>
-      <p style="margin-top:28px; color:var(--muted); font-size:13px; line-height:1.7; padding:14px 16px; border-left:3px solid var(--accent-2); background:rgba(245,197,66,.04); border-radius:0 6px 6px 0;">This site is an independent, unofficial fan tribute. It is <strong style="color:var(--text); font-weight:700;">not affiliated with, endorsed by, or sponsored by Nintendo Co., Ltd.</strong> "Game &amp; Watch", Nintendo, and all related names, logos, and characters are trademarks of Nintendo. NintendoGame.Watch exists purely to document and celebrate the line for collectors and enthusiasts — no commerce, no claim to ownership.</p>
-    </div>
-  </div>
-</div>
-
-<!-- Timeline modal -->
-<div class="overlay" id="timeline-overlay" onclick="if(event.target===this)closeOverlay('timeline-overlay')">
-  <div class="modal" role="dialog" aria-modal="true">
-    <div class="modal-head">
-      <div>
-        <div class="modal-sub">Timeline</div>
-        <div class="modal-title">A decade of Game &amp; Watch</div>
-      </div>
-      <button class="modal-close" onclick="closeOverlay('timeline-overlay')" aria-label="Close">×</button>
-    </div>
-    <div class="article">
-      <p class="sub">From a single juggler in 1980 to Mario juggling under a moonlit Stage in 1991 — eleven years, ten series, and a small revolution in handheld design.</p>
-      <div class="timeline" id="timeline-list"></div>
     </div>
   </div>
 </div>
@@ -4142,6 +4144,13 @@ function renderRoute() {
   } else if (state.route === '/collection') {
     $('#view-collection').classList.add('active');
     document.querySelector('.nav-link[data-route="/collection"]').classList.add('active');
+  } else if (state.route === '/timeline') {
+    $('#view-timeline').classList.add('active');
+    document.querySelector('.nav-link[data-route="/timeline"]').classList.add('active');
+    renderTimeline();
+  } else if (state.route === '/about') {
+    $('#view-about').classList.add('active');
+    document.querySelector('.nav-link[data-route="/about"]').classList.add('active');
   }
   render();
 }
@@ -4780,23 +4789,19 @@ function toast(message, kind, ms) {
 function toastErr(msg)  { return toast(msg, 'error');   }
 function toastOk(msg)   { return toast(msg, 'success'); }
 function toastWarn(msg) { return toast(msg, 'warn');    }
-function openAbout() { openOverlay('about-overlay'); }
-function openTimeline() {
+// Populates #timeline-list inside view-timeline. Called from
+// renderRoute() whenever the /timeline route is entered.
+function renderTimeline() {
   const list = $('#timeline-list');
+  if (!list) return;
   list.innerHTML = TIMELINE.map(t => {
     const s = seriesById(t.series);
-    return `<div class="tl-item clickable" style="--c:${s.color}" onclick="gotoSeriesFromTimeline('${t.series}')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();gotoSeriesFromTimeline('${t.series}')}">
+    return `<div class="tl-item clickable" style="--c:${s.color}" onclick="route('/collection/${t.series}')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();route('/collection/${t.series}')}">
       <div class="tl-year">${t.year} · ${s.name}</div>
       <div class="tl-title">${t.title}<span class="tl-arrow">→</span></div>
       <div class="tl-desc">${t.desc}</div>
     </div>`;
   }).join('');
-  openOverlay('timeline-overlay');
-}
-
-function gotoSeriesFromTimeline(seriesId) {
-  closeOverlay('timeline-overlay');
-  route('/collection/' + seriesId);
 }
 
 /* Ownership panel — notes, price, acquired-date, files (Supabase-backed). */
