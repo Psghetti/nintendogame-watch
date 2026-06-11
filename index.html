@@ -1506,7 +1506,41 @@
     margin: 0 0 6px;
   }
   .drawer-title-row h2 { margin: 0; }
-  .drawer-title-row .rarity-tip-host { margin-left: auto; }
+  /* Right-side cluster: variant dropdown + rarity badge, kept
+     together and pushed to the right edge of the title row. */
+  .drawer-title-extras {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  /* Variant dropdown — styled to feel like a sibling chip to the
+     rarity badge: pill border, small caps, a chevron baked into the
+     background so the native select arrow can be hidden. */
+  .variant-select {
+    appearance: none;
+    -webkit-appearance: none;
+    background: rgba(255,255,255,.04);
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 5px 28px 5px 14px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .01em;
+    cursor: pointer;
+    outline: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6' fill='%23a8b0c0'><path d='M0 0l5 6 5-6z'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 8px 5px;
+  }
+  .variant-select:hover  { border-color: #3a455c; color: var(--text); }
+  .variant-select:focus  { border-color: var(--accent); }
+  .variant-select option { background: var(--bg-1); color: var(--text); }
 
   /* Drawer-variant rarity badge — slightly larger than the card chip
      so it reads at title scale. Same tier colour palette. */
@@ -3654,6 +3688,72 @@ const RARITY = {
   'other-super-mario-bros-special':    { pct: 98, tier: 'Ultra Rare' },
 };
 
+// =====================================================================
+// VARIANTS  —  Same hardware, different colour / region / packaging.
+//             Not to be confused with: separate hardware in the same
+//             series (Wide Screen Fire vs Silver Fire), reissues
+//             (Ball Club Nintendo, the 35th-anniversary TFT units),
+//             or different games entirely.
+//
+// Each entry is { id, label, rarity?, prices? }. If a variant has its
+// own rarity / pricing the drawer overrides the device defaults when
+// that variant is selected. Default selection on every drawer open
+// is "Undefined" — the device's own RARITY / device_prices values
+// are shown until the user picks something specific.
+// =====================================================================
+const VARIANTS = {
+  // First entry in each list is the "default" — the variant whose
+  // numbers already match the catalog RARITY value and the Supabase
+  // device_prices snapshot. It has id='' so onVariantChange() falls
+  // back to the device defaults without needing any override fields.
+  // Subsequent entries describe rarer regional / colour / packaging
+  // variants and can override rarity and/or prices.
+  'silver-ball': [
+    { id: '',       label: 'Japan (original)' },
+    { id: 'cgl-uk', label: 'CGL (UK distributor)' },
+  ],
+  'silver-judge': [
+    { id: '',       label: 'Green (international)' },
+    { id: 'purple', label: 'Purple (JP first run)',
+      rarity: { tier: 'Super Rare', pct: 81 },
+      prices: { loose_usd: 125, cib_usd: 750, new_usd: 2025 } },
+  ],
+  'widescreen-octopus': [
+    { id: '',       label: 'Japan' },
+    { id: 'cgl-uk', label: 'CGL (UK distributor)' },
+  ],
+  'widescreen-mickey-mouse': [
+    { id: '',          label: 'Japan' },
+    { id: 'efi-italy', label: 'EFI (Italian distributor)' },
+  ],
+  'widescreen-super-mario-bros': [
+    { id: '',         label: 'Original' },
+    { id: 'white-eu', label: 'White case (EU)' },
+  ],
+  'multiscreen-donkey-kong': [
+    { id: '',          label: 'Standard release' },
+    { id: 'anniv-20m', label: '20-Million Anniversary edition' },
+  ],
+  'multiscreen-mickey-donald': [
+    { id: '',       label: 'Japan' },
+    { id: 'cgl-uk', label: 'CGL (UK distributor)' },
+  ],
+  'multiscreen-green-house': [
+    { id: '',                  label: 'Japan' },
+    { id: 'future-tronics-au', label: 'Future Tronics (Australia)' },
+  ],
+  'multiscreen-mario-bros': [
+    { id: '',                  label: 'Japan' },
+    { id: 'cgl-uk',            label: 'CGL (UK distributor)' },
+    { id: 'future-tronics-au', label: 'Future Tronics (Australia)' },
+  ],
+  'multiscreen-zelda': [
+    { id: '',             label: 'Standard release' },
+    { id: 'hard-blister', label: 'Hard-blister packaging' },
+    { id: 'na',           label: 'North America edition' },
+  ],
+};
+
 // Map RarityGuide's tier names to CSS classes for colouring the badge
 // and pill. Ordered from least → most rare so the palette steps through
 // a coherent gradient (cool greys → blues → greens → golds → warm reds).
@@ -4364,14 +4464,58 @@ function rarityTipHTML(activeTier) {
   </div>`;
 }
 
-function rarityDrawerBadgeHTML(d) {
-  const r = RARITY[d.id];
+function rarityDrawerBadgeHTML(d, override) {
+  // `override` lets a selected variant supply its own { tier, pct }.
+  // When undefined (no variant or variant doesn't override rarity),
+  // the device's catalog-default RARITY entry is used.
+  const r = override || RARITY[d.id];
   if (!r) return '';
   const cls = RARITY_TIER_CLASS[r.tier] || '';
   return `<span class="rarity-tip-host">
     <span class="rarity-badge rarity-badge-drawer ${cls}">${r.tier} · ${r.pct}%</span>
     ${rarityTipHTML(r.tier)}
   </span>`;
+}
+
+// Variant dropdown shown to the left of the rarity badge in the drawer
+// title row. Returns '' when the device has no known variants — so
+// most cards still render exactly the same way they did before.
+//
+// The first VARIANTS[d.id] entry is the catalog-default and gets
+// selected automatically (since it's the first <option>). No
+// "Undefined" placeholder — every option is a real, named variant.
+function variantDropdownHTML(d) {
+  const vs = VARIANTS[d.id];
+  if (!vs || !vs.length) return '';
+  const opts = vs.map(v => `<option value="${v.id}">${v.label}</option>`);
+  return `<select class="variant-select" id="variant-select" aria-label="Variant"
+    onchange="onVariantChange('${d.id}', this.value)">${opts.join('')}</select>`;
+}
+
+// Pure UI update — swap the rarity badge and market-value panel to
+// match the chosen variant's overrides (or restore device defaults
+// when the variant has no overrides / variantId is empty). Doesn't
+// persist anything, so safe to call during hydrate.
+function applyVariantToDrawer(d, variantId) {
+  const variant = (VARIANTS[d.id] || []).find(v => v.id === variantId);
+  const rarityHost = document.querySelector('.drawer-title-extras .rarity-tip-host');
+  if (rarityHost) rarityHost.outerHTML = rarityDrawerBadgeHTML(d, variant && variant.rarity);
+  const pricesPanel = $('#market-prices-mount');
+  if (pricesPanel) pricesPanel.outerHTML = marketPricesHTML(d, variant && variant.prices);
+}
+
+// Called from the variant dropdown's onchange (user-driven). Updates
+// the drawer UI AND persists the choice to the user's vault so it
+// survives across browsers / devices. Share-mode visitors don't get
+// here because the dropdown is disabled on hydrate.
+async function onVariantChange(deviceId, variantId) {
+  const d = DEVICES.find(x => x.id === deviceId);
+  if (!d) return;
+  applyVariantToDrawer(d, variantId);
+  if (isShareMode) return;
+  // Send empty string to clear, real id otherwise. The RPC nullif()'s
+  // empty strings so the DB column ends up NULL for "default".
+  await vaultSave(deviceId, { variant: variantId });
 }
 
 function deviceCardHTML(d) {
@@ -4534,7 +4678,10 @@ function openDevice(id) {
           </div>
           <div class="drawer-title-row">
             <h2>${d.name}</h2>
-            ${rarityDrawerBadgeHTML(d)}
+            <div class="drawer-title-extras">
+              ${variantDropdownHTML(d)}
+              ${rarityDrawerBadgeHTML(d)}
+            </div>
           </div>
           ${isShareMode
             ? (collected.has(d.id)
@@ -5096,6 +5243,20 @@ function hydrateOwnershipPanel(d) {
   if (testedEl) {
     testedEl.checked = !!cached.tested;
     updateTestedLabel(testedEl);
+  }
+  // Variant dropdown — lives in the drawer title row outside this
+  // panel, so look it up document-wide. Default to '' which selects
+  // the first option (the catalog-default variant). In share mode
+  // the visitor sees the owner's saved choice but can't change it.
+  const variantSel = document.querySelector('#variant-select');
+  if (variantSel) {
+    variantSel.value = cached.variant || '';
+    if (isShareMode) variantSel.disabled = true;
+    // Re-sync the rarity badge + market price panel with the saved
+    // variant so a re-opened drawer immediately reflects "your"
+    // Purple Judge rather than the catalog default. UI-only — no
+    // persist (we'd just be re-saving the value we just loaded).
+    if (cached.variant) applyVariantToDrawer(d, cached.variant);
   }
   // In share mode, make every editable input read-only AND switch the
   // notes tabs to "Public" (the only one visible to share recipients).
@@ -5912,8 +6073,13 @@ async function loadUsdToAud() {
 // placeholder when no price data is available so the slot just
 // collapses but loadDevicePrices() can find the mount point to
 // re-render in once the data arrives.
-function marketPricesHTML(d) {
-  const p = devicePrices.get(d.id);
+//
+// `override` lets a selected variant supply its own { loose_usd,
+// cib_usd, new_usd } prices (e.g. Judge Purple is much more valuable
+// than Judge Green). When undefined the device's daily Supabase
+// snapshot is used as the source.
+function marketPricesHTML(d, override) {
+  const p = override || devicePrices.get(d.id);
   if (!p) return '<div id="market-prices-mount" style="display:none"></div>';
   const has = (p.loose_usd != null) || (p.cib_usd != null) || (p.new_usd != null);
   if (!has) return '<div id="market-prices-mount" style="display:none"></div>';
@@ -6042,6 +6208,7 @@ async function vaultSave(deviceId, fields) {
     p_shipping:       fields.shipping      ?? null,
     p_public_notes:   fields.public_notes  ?? null,
     p_links:          Array.isArray(fields.links) ? fields.links : null,
+    p_variant:        fields.variant       ?? null,
   };
   try {
     const { error } = await supa.rpc('upsert_device_data', payload);
@@ -6066,6 +6233,7 @@ async function vaultSave(deviceId, fields) {
       acquired_at:   fields.acquired_at   ?? existing.acquired_at,
       collected:     fields.collected     ?? existing.collected,
       links:         Array.isArray(fields.links) ? fields.links : existing.links,
+      variant:       textMerge(fields.variant, existing.variant),
       updated_at:    new Date().toISOString(),
     }));
     return true;
