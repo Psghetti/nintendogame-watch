@@ -917,6 +917,45 @@
   .game-item { display: flex; gap: 10px; align-items: start; font-size: 14px; color: var(--text); }
   .game-item .badge-g { color: var(--accent); font-weight: 800; font-family: ui-monospace, Consolas, monospace; }
 
+  /* Market value panel — sits between Specifications and Built-in
+     Games in the drawer's right sidebar. Three equal cells for
+     loose / complete / new with monospaced figures. */
+  .sect-h-sub {
+    margin-left: 6px;
+    font-size: 9px;
+    letter-spacing: .18em;
+    color: var(--muted);
+    font-weight: 700;
+  }
+  .price-grid {
+    margin-top: 12px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .price-cell {
+    text-align: center;
+    padding: 12px 6px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: rgba(255,255,255,.02);
+  }
+  .price-k {
+    font-size: 9px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 700;
+  }
+  .price-v {
+    margin-top: 6px;
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+  .price-v .price-dash { color: var(--muted); font-weight: 600; }
+
   /* About / timeline modal */
   .article { padding: 28px 30px 32px; max-width: 760px; margin: 0 auto; }
   .article h2 { margin: 0 0 6px; font-size: 28px; letter-spacing: -.015em; }
@@ -4641,6 +4680,7 @@ function openDevice(id) {
       <aside class="drawer-sidebar" style="--c:${s.color}">
         <div class="sidebar-inner">
           <section class="sect"><h3 class="sect-h">Specifications</h3><div class="factbox">${facts}</div></section>
+          ${marketPricesHTML(d)}
           ${games ? `<section class="sect"><h3 class="sect-h">Built-in Games</h3><div class="games-list">${games}</div></section>` : ''}
           <div class="status-panel">
             <div class="status-row"><span class="status-k">&gt; GAME:</span><span class="status-v">${d.name.toUpperCase()}</span></div>
@@ -5727,6 +5767,17 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 const VAULT_CODE_KEY = 'pp-vault-code-v1';
 let supa = null;                 // supabase client, set in initSupabase()
+// Market-price snapshot, keyed by device id. Populated once per page
+// load by loadDevicePrices() — the row is null for devices whose
+// source pricing is contaminated (silver-ball, original SMB NWS,
+// Multi-Screen Zelda) and for the Tetris Jr. prototype.
+let devicePrices = new Map();
+
+// USD → AUD multiplier, fetched once per page load from Frankfurter
+// (ECB rates, free, no key). Cached in localStorage for 6 hours so
+// reloads don't hammer the API. If the fetch fails, we fall back to
+// showing the raw USD values rather than rendering wrong numbers.
+let usdToAud = null;
 let vaultCode = null;            // current uuid
 let vaultDataCache = new Map();  // device_id -> { collected, note, price, acquired_at, updated_at }
 
@@ -5780,6 +5831,110 @@ function initSupabase() {
     console.warn('[NintendoGame.Watch] Supabase init failed:', e);
     return null;
   }
+}
+
+// Pull the public device_prices snapshot once at startup. Refreshed
+// server-side by the refresh-prices Edge Function on a daily cron, so
+// a single SELECT here is fine — no need to re-fetch as the user
+// browses. Silent on failure: the drawer just won't render the
+// "Market Value" panel if the table is empty or unreachable.
+async function loadDevicePrices() {
+  if (!supa) return;
+  try {
+    const { data, error } = await supa
+      .from('device_prices')
+      .select('device_id, loose_usd, cib_usd, new_usd, updated_at');
+    if (error) { console.warn('[prices] load failed:', error.message); return; }
+    devicePrices.clear();
+    for (const row of (data || [])) devicePrices.set(row.device_id, row);
+    // Re-render the device drawer if it's already open so the panel
+    // appears as soon as the data arrives.
+    if ($('#device-overlay').classList.contains('open')) {
+      const t = $('.modal-title'); if (t) {
+        const d = DEVICES.find(x => x.name === t.textContent);
+        if (d) {
+          const panel = $('#market-prices-mount');
+          if (panel) panel.outerHTML = marketPricesHTML(d);
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('[prices] load threw:', e);
+  }
+}
+
+// Pull the USD → AUD rate once per page load, with a 6-hour cache so
+// rapid reloads don't re-fetch. Frankfurter is free, no API key, and
+// is ECB-sourced (closing rates from the previous European business
+// day). Sets usdToAud on success; leaves it null on failure so the
+// renderer falls back to showing the raw USD values.
+const FX_USD_AUD_KEY = 'pp-fx-usd-aud-v1';
+const FX_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+async function loadUsdToAud() {
+  // Try the cached rate first.
+  try {
+    const cached = JSON.parse(localStorage.getItem(FX_USD_AUD_KEY) || 'null');
+    if (cached && (Date.now() - cached.ts) < FX_CACHE_TTL_MS && cached.rate > 0) {
+      usdToAud = cached.rate;
+    }
+  } catch (e) {}
+  // Fire-and-forget refresh — even if we had a cached rate, pull a
+  // fresh one in the background. The drawer re-renders on success.
+  try {
+    // Frankfurter migrated from .app to .dev in 2025 — the old host
+     // returns a 301 the browser fetch can't transparently follow due
+     // to CORS, so we point at the new v1 endpoint directly.
+    const resp = await fetch('https://api.frankfurter.dev/v1/latest?from=USD&to=AUD');
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const json = await resp.json();
+    const rate = json && json.rates && json.rates.AUD;
+    if (typeof rate !== 'number' || rate <= 0) throw new Error('Bad rate');
+    usdToAud = rate;
+    try { localStorage.setItem(FX_USD_AUD_KEY, JSON.stringify({ rate, ts: Date.now() })); } catch (e) {}
+    // Re-render the device drawer if it's already open so AUD figures
+    // appear as soon as the FX rate arrives.
+    if ($('#device-overlay').classList.contains('open')) {
+      const t = $('.modal-title'); if (t) {
+        const d = DEVICES.find(x => x.name === t.textContent);
+        if (d) {
+          const panel = $('#market-prices-mount');
+          if (panel) panel.outerHTML = marketPricesHTML(d);
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('[fx] USD→AUD fetch failed:', e);
+  }
+}
+
+// Render a small 3-column price card for the drawer's right sidebar.
+// Sits between Specifications and Built-in Games. Returns a hidden
+// placeholder when no price data is available so the slot just
+// collapses but loadDevicePrices() can find the mount point to
+// re-render in once the data arrives.
+function marketPricesHTML(d) {
+  const p = devicePrices.get(d.id);
+  if (!p) return '<div id="market-prices-mount" style="display:none"></div>';
+  const has = (p.loose_usd != null) || (p.cib_usd != null) || (p.new_usd != null);
+  if (!has) return '<div id="market-prices-mount" style="display:none"></div>';
+  // Convert USD → AUD if we have a rate; otherwise fall back to USD
+  // so the panel always shows something useful even when the FX API
+  // is unreachable.
+  const rate = (typeof usdToAud === 'number' && usdToAud > 0) ? usdToAud : null;
+  const currencyLabel = rate ? 'AUD' : 'USD';
+  const locale = rate ? 'en-AU' : 'en-US';
+  const fmt = (n) => {
+    if (n == null) return '<span class="price-dash">—</span>';
+    const v = rate ? n * rate : n;
+    return '$' + v.toLocaleString(locale, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  };
+  return `<section class="sect" id="market-prices-mount"><h3 class="sect-h">Market Value <span class="sect-h-sub">${currencyLabel}</span></h3>
+    <div class="price-grid">
+      <div class="price-cell"><div class="price-k">Loose</div><div class="price-v">${fmt(p.loose_usd)}</div></div>
+      <div class="price-cell"><div class="price-k">Complete</div><div class="price-v">${fmt(p.cib_usd)}</div></div>
+      <div class="price-cell"><div class="price-k">New / Sealed</div><div class="price-v">${fmt(p.new_usd)}</div></div>
+    </div>
+  </section>`;
 }
 
 /* localStorage flag set the moment a vault first proves it exists server-
@@ -7002,6 +7157,10 @@ function bootApp() {
   // in the background so the page can render immediately on cached values.
   if (!isShareMode) vaultCode = getOrCreateVaultCode();
   initSupabase();
+  // Market-price snapshot and the AUD FX rate both fire in the
+  // background; the drawer panel self-refreshes when either arrives.
+  loadDevicePrices();
+  loadUsdToAud();
   // Validate the localStorage-resident vault_code against the server. If
   // the row no longer exists (deleted from another browser), wipe local
   // state and reload so a fresh vault gets minted.
