@@ -1,0 +1,80 @@
+NOTICE -- THIRD-PARTY RIGHTS, TRADEMARKS AND SCOPE
+==================================================
+
+NintendoGame.Watch is an independent, non-commercial fan tribute and
+preservation project. It is unofficial fan work.
+
+  * It is NOT affiliated with, authorised by, endorsed by, sponsored by, or
+    connected to Nintendo Co., Ltd., Sharp Corporation, Tetris Holding LLC,
+    The Tetris Company, or any other rights holder.
+
+  * All trademarks, trade names, product names, logos and character designs
+    referenced anywhere in this project or its documentation remain the
+    property of their respective owners. This includes, without limitation,
+    "Nintendo", "Game & Watch" and "Tetris". They are used only for
+    identification and descriptive purposes -- to state which historical
+    device is being documented -- and no claim of ownership, affiliation or
+    endorsement is made or implied.
+
+
+NO LICENSE IS GRANTED TO THIRD-PARTY MATERIAL
+---------------------------------------------
+
+The LICENSE (PolyForm Noncommercial 1.0.0) and LICENSE-ASSETS (CC BY-NC-SA 4.0)
+files in this repository apply ONLY to material authored from scratch by this
+project.
+
+They do NOT apply, and are NOT capable of applying, to any material that
+depicts, reproduces, traces or is derived from artwork, industrial design,
+packaging, printed documentation, audio or other expression owned by a third
+party.
+
+The project does not own such material and therefore cannot license it.
+Nothing in this distribution should be read as a grant of rights in it, and no
+such grant is intended or made. Any person redistributing or reusing material
+from this project is responsible for satisfying themselves as to the rights
+position of the specific files they use.
+
+
+THIRD-PARTY IMAGERY IN THIS DISTRIBUTION
+----------------------------------------
+
+This distribution includes device photographs, box art, printed-manual scans
+and on-screen imagery depicting Nintendo Game & Watch hardware and games (and,
+for the Tetris Jr. prototype, material relating to Tetris). That imagery is
+owned by its respective rights holders. It is included solely for
+identification, documentation and preservation, is NOT covered by the LICENSE
+or LICENSE-ASSETS files, and no rights in it are granted.
+
+The emulated game and firmware data (ROMs and colour-unit flash images) is NOT
+distributed with this project. It is regenerated locally by the end user from
+their own dumps -- see firmware/build_gnw_roms.ps1.
+
+
+GOOD-FAITH POSITION AND CONTACT
+-------------------------------
+
+This project exists to document and preserve historical handheld electronic
+games. It is offered free of charge and is not monetised in any form: no sale,
+no advertising, no subscription, no donation gating, no paid access of any
+kind.
+
+If you are a rights holder and object to any part of this project, please
+contact the maintainers at the address below. Good-faith requests will be
+acted on promptly and without argument, including removal of the material
+concerned.
+
+    Project : NintendoGame.Watch
+    Contact : info@nintendogame.watch
+    Web     : https://nintendogame.watch/
+
+
+DISCLAIMER OF WARRANTY
+----------------------
+
+This project is provided "as is", without warranty of any kind, express or
+implied, including but not limited to the warranties of merchantability,
+fitness for a particular purpose and non-infringement. In no event shall the
+copyright holder be liable for any claim, damages or other liability, whether
+in an action of contract, tort or otherwise, arising from, out of or in
+connection with this project or its use.

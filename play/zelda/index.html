@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Pilot · Zelda TFT (HXB-001)</title>
+<style>
+  :root{ --bg:#0d0f14; --ink:#e8ecf5; --muted:#8b93a7; --go:#2fa54a; }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; height:100%; background:
+      radial-gradient(120% 90% at 50% 0%, #161a24 0%, var(--bg) 60%) fixed;
+    color:var(--ink); font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+  .wrap{ min-height:100%; display:flex; flex-direction:column; align-items:center; gap:14px; padding:22px 14px 40px; }
+  h1{ font-size:.72rem; font-weight:600; letter-spacing:.18em; text-transform:uppercase; color:var(--muted); margin:0; }
+
+  /* device artwork with the live screen + clickable buttons overlaid on top */
+  .device{ position:relative; width:min(820px, 96vw); user-select:none; -webkit-user-select:none;
+    filter:drop-shadow(0 30px 55px rgba(0,0,0,.55)); }
+  .device .art{ display:block; width:100%; height:auto; border-radius:14px; -webkit-user-drag:none; }
+
+  /* the emulated 320x240 panel, positioned exactly over the device's active LCD */
+  #screen{ position:absolute; left:29.1%; top:23.25%; width:41.9%; height:54.28%;
+    background:#000; image-rendering:auto; }
+
+  /* transparent hit-targets sitting on the real buttons */
+  .hot{ position:absolute; cursor:pointer; border-radius:40%; -webkit-tap-highlight-color:transparent; }
+  .hot.rnd{ border-radius:50%; }
+  .hot:active,.hot.on{ background:rgba(255,255,255,.30); box-shadow:0 0 12px 3px rgba(255,255,255,.4) inset; }
+
+  #status{ font-size:.72rem; color:var(--muted); min-height:1em; letter-spacing:.02em; }
+  #status b{ color:var(--ink); font-weight:600; }
+  #status .rt{ color:var(--go); }
+  /* control legend styled like the gnw play modal's .play-controls */
+  .pcontrols{ display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:6px; width:min(820px,96vw); font-size:.64rem; color:var(--muted); }
+  .pcontrols .mbtn{ margin-left:auto; }
+  .pbtn{ display:inline-flex; align-items:center; gap:5px; padding:4px 9px; border:1px solid #2b3342; border-radius:5px; color:var(--muted); }
+  .pkey{ display:inline-flex; align-items:center; justify-content:center; min-width:16px; height:16px; padding:0 4px; background:rgba(255,255,255,.06); border:1px solid #2b3342; border-radius:3px; font-family:ui-monospace,Consolas,monospace; font-size:.58rem; font-weight:800; }
+  .mbtn{ font:inherit; font-size:.62rem; letter-spacing:.04em; color:var(--ink); background:#1b2029;
+    border:1px solid #2b3342; border-radius:5px; padding:5px 11px; cursor:pointer; transition:background .12s; }
+  .mbtn:hover{ background:#222836; }
+  .mbtn:focus-visible{ outline:2px solid var(--go); outline-offset:2px; }
+  .mbtn[aria-pressed="true"]{ color:var(--muted); border-color:#3a2530; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="device">
+    <img class="art" src="device.png?v=1" alt="Game &amp; Watch: The Legend of Zelda handheld">
+    <canvas id="screen" width="320" height="240"></canvas>
+
+    <!-- side buttons (centered on measured button positions) -->
+    <div class="hot"      data-btn="game"  style="left:80.0%; top:10.0%; width:6%;   height:8%"></div>
+    <div class="hot time" data-btn="time"  style="left:80.0%; top:21.7%; width:6%;   height:8%"></div>
+    <div class="hot"      data-btn="pause" style="left:79.5%; top:33.5%; width:7%;   height:8%"></div>
+    <!-- Select / Start (Zelda only — its NES/GB games use them; Mario has neither) -->
+    <div class="hot"      data-btn="select" style="left:77.6%; top:59.4%; width:9.2%; height:5%"></div>
+    <div class="hot"      data-btn="start"  style="left:87.8%; top:59.4%; width:9.2%; height:5%"></div>
+    <!-- A / B -->
+    <div class="hot rnd"  data-btn="b"     style="left:78.2%; top:72.9%; width:7.5%; height:12.8%"></div>
+    <div class="hot rnd"  data-btn="a"     style="left:88.6%; top:72.9%; width:7.5%; height:12.8%"></div>
+    <!-- d-pad arms -->
+    <div class="hot"      data-btn="up"    style="left:8.7%;  top:58.5%; width:8%; height:8.5%"></div>
+    <div class="hot"      data-btn="down"  style="left:8.7%;  top:78.0%; width:8%; height:8.5%"></div>
+    <div class="hot"      data-btn="left"  style="left:3.6%;  top:67.8%; width:6.2%; height:9.5%"></div>
+    <div class="hot"      data-btn="right" style="left:15.3%; top:67.8%; width:6.2%; height:9.5%"></div>
+  </div>
+
+  <div id="status">starting…</div>
+  <div class="pcontrols">
+    <span class="pbtn"><span class="pkey">1</span> Game</span>
+    <span class="pbtn"><span class="pkey">2</span> Time</span>
+    <span class="pbtn"><span class="pkey">3</span> Pause</span>
+    <span class="pbtn"><span class="pkey">← ↑ ↓ →</span> Move</span>
+    <span class="pbtn"><span class="pkey">Q</span> B</span>
+    <span class="pbtn"><span class="pkey">E</span> A</span>
+    <span class="pbtn"><span class="pkey">C</span> Select</span>
+    <span class="pbtn"><span class="pkey">V</span> Start</span>
+    <span class="pbtn"><span class="pkey">P</span> Power</span>
+    <button id="mute" class="mbtn" type="button" aria-pressed="false">🔊 Sound on</button>
+  </div>
+</div>
+
+<script>
+  window.TWIN_UNIT = "zelda";
+  // Firmware mode from this page's own URL: default 'retail', or 'custom' (the
+  // "Open custom firmware" flow loads this page as ...?fw=custom).
+  window.TWIN_FW = new URLSearchParams(location.search).get("fw") || "retail";
+</script>
+<script src="../twin-harness.js?v=20260730-pack1"></script>
+</body>
+</html>

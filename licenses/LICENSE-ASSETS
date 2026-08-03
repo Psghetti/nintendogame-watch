@@ -1,0 +1,86 @@
+CREATIVE COMMONS ATTRIBUTION-NONCOMMERCIAL-SHAREALIKE 4.0 INTERNATIONAL
+======================================================================
+
+Copyright (c) 2026 the NintendoGame.Watch project
+
+The original creative work described under "Scope" below is licensed under the
+Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License
+(CC BY-NC-SA 4.0).
+
+    SPDX-License-Identifier: CC-BY-NC-SA-4.0
+
+Full legal code:
+    https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode
+
+Human-readable summary (not a substitute for the legal code):
+    https://creativecommons.org/licenses/by-nc-sa/4.0/
+
+
+WHAT THIS MEANS
+---------------
+
+You are free to:
+
+  Share    -- copy and redistribute the material in any medium or format.
+  Adapt    -- remix, transform, and build upon the material.
+
+Under the following terms:
+
+  Attribution   -- You must give appropriate credit, provide a link to the
+                   license, and indicate if changes were made.
+
+  NonCommercial -- You may not use the material for commercial purposes.
+
+  ShareAlike    -- If you remix, transform, or build upon the material, you
+                   must distribute your contributions under the same license
+                   as the original.
+
+  No additional restrictions -- You may not apply legal terms or
+                   technological measures that legally restrict others from
+                   doing anything the license permits.
+
+Adaptation is deliberately permitted (for noncommercial purposes). Migrating
+this material to future file formats is the central act of digital
+preservation, and a license that forbade it would defeat the purpose of
+releasing it.
+
+
+ATTRIBUTION
+-----------
+
+Please credit as:
+
+    "NintendoGame.Watch" (https://nintendogame.watch), licensed CC BY-NC-SA 4.0
+
+
+SCOPE OF THIS LICENSE
+---------------------
+
+This license covers ONLY original work authored from scratch by the project,
+namely:
+
+  * The written documentation and research published on this site -- the
+    Hardware and Emulation write-ups, the chip analyses, and the STM32H7
+    digital-twin research and notes.
+
+  * Original user-interface design and graphics created by the project.
+
+It does NOT cover:
+
+  * Source code and tooling -- see LICENSE (PolyForm Noncommercial 1.0.0).
+
+  * Third-party components referenced or redistributed with this work --
+    see THIRD-PARTY-NOTICES.
+
+  * ANY asset that depicts, reproduces, traces, or is otherwise derived from
+    hardware designs, artwork, characters, packaging, printed material or
+    trademarks owned by third parties -- including every device photograph,
+    box-art image, manual scan and on-screen frame in this distribution.
+
+    No license is granted to such material. The project does not own it and
+    therefore cannot license it. See NOTICE.
+
+    IMPORTANT: Creative Commons licenses are IRREVOCABLE. No third-party-derived
+    asset is placed under this or any other CC license, because doing so would
+    purport to grant rights that were never held, permanently and to every
+    recipient, and could not afterwards be withdrawn.

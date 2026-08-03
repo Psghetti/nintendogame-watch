@@ -1,0 +1,18 @@
+# ---------------------------------------------------------------------------
+# Built content (Nintendo-derived) — NOT distributed. Regenerate locally with
+#   firmware/build_gnw_roms.ps1   (right-click -> Run with PowerShell)
+# pointing $SourceFolder at your own dumps or the content packages.
+# ---------------------------------------------------------------------------
+firmware/gnw_roms.json
+firmware/artwork.json.gz
+play/mario/firmware_mario.js
+play/zelda/firmware_zelda.js
+
+# ---------------------------------------------------------------------------
+# Local backups & editor/OS junk (not part of the deployable site)
+# ---------------------------------------------------------------------------
+*.bak
+*~
+.DS_Store
+Thumbs.db
+desktop.ini

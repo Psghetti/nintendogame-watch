@@ -1,0 +1,26 @@
+THIRD-PARTY NOTICES
+===================
+
+This project references the third-party component listed below. It remains
+under its own license.
+
+
+---------------------------------------------------------------------------
+@supabase/supabase-js
+---------------------------------------------------------------------------
+Role     : Client library for the optional "vault" collection-tracker feature.
+Loaded   : at runtime from the jsDelivr CDN
+           (https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2).
+           It is REFERENCED, not redistributed in this repository.
+License  : MIT
+Source   : https://github.com/supabase/supabase-js
+           (see that repository's LICENSE for the verbatim text)
+
+
+---------------------------------------------------------------------------
+NOTHING ELSE IS BUNDLED
+---------------------------------------------------------------------------
+
+This project bundles no third-party JavaScript libraries, no web fonts (all
+text uses the viewer's own system fonts), and no WebGL / GLSL shaders. There
+is therefore no GPL-licensed shader or bundled-dependency notice to reproduce.
