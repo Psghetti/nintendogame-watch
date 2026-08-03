@@ -10,8 +10,7 @@ emulators, manuals, a series timeline, and a personal collection tracker.
 
 Everything needed to serve the site is in this folder. The only external piece
 is the optional Supabase backend (personal collection, notes, prices, sharing,
-recovery) — and that is fully documented and reproducible from
-[`Database/`](./Database) so it can be rebuilt from scratch.
+recovery); browsing and every emulator work fully without it.
 
 ---
 
@@ -55,29 +54,8 @@ GitHub Pages, S3, nginx, …). Two things to know:
   On hosts that don't let you set headers (e.g. GitHub Pages) the site still runs
   with graceful fallbacks; you just don't get the isolated fast path.
 - GitHub Pages with a custom domain needs a `CNAME` file (one line: your domain).
-  This standalone copy doesn't include one — add it if you go that route.
-
----
-
-## Connecting the backend (optional)
-
-To enable the cloud collection features, point the site at a Supabase project and
-rebuild its database:
-
-1. Follow **[`Database/README.md`](./Database/README.md)** to apply
-   `Database/rebuild.sql` to a new Supabase project, create the `vault-files`
-   storage bucket, and (optionally) deploy the two edge functions.
-2. In `index.html`, set the two constants near the bottom (around line 17725 —
-   search for `const SUPABASE_URL`):
-   ```js
-   const SUPABASE_URL      = 'https://<your-ref>.supabase.co';
-   const SUPABASE_ANON_KEY = '<your anon key>';
-   ```
-3. Reload. A fresh vault mints on first load; the collection now syncs to your
-   database.
-
-See [`Database/FUNCTIONS.md`](./Database/FUNCTIONS.md) for the full backend map
-(tables, every RPC "API" function, the edge functions, the security model).
+  This copy includes one for `nintendogame.watch` — change it to your own domain,
+  or delete it, if you fork.
 
 ---
 
@@ -98,46 +76,8 @@ See [`Database/FUNCTIONS.md`](./Database/FUNCTIONS.md) for the full backend map
 | `FavIcon/` | Favicons / app icons. |
 | `404.html` | Not-found page (used by static hosts / GitHub Pages). |
 | `server.ps1` | The local dev server described in Quick start. |
-| `Database/` | Archival backup of the Supabase backend + how to rebuild it (see its README). |
 
-Total size ≈ 530 MB (the bulk is the base64 image archive, the manual pages.
-
----
-
-## Loading the content pack from Google Drive (optional)
-
-On a hosted copy (e.g. GitHub Pages) the "Batteries not included" banner can
-offer a **From cloud storage → Google Drive** button, so a visitor signs in and
-picks the content `.zip` from their own Drive instead of choosing a local file.
-It uses the narrow `drive.file` scope — the site only ever sees the single file
-the user picks. It's **off until you add two public values** (an OAuth Client ID
-and an API key — safe to commit; these are *not* secrets) to the `CONFIG.google`
-block at the top of [`firmware/cloud_storage.js`](./firmware/cloud_storage.js).
-It is hidden on `localhost` by design (the local server's isolation headers block
-Google's sign-in popup, and locally you can just copy the files down yourself).
-
-One-time setup in the [Google Cloud Console](https://console.cloud.google.com):
-
-1. **New project** — top-bar project dropdown → *New Project*.
-2. **Enable APIs** — *APIs & Services → Library* → enable **Google Picker API**
-   and **Google Drive API**.
-3. **OAuth consent screen** — *APIs & Services → OAuth consent screen* →
-   **External** → fill in an app name + your email. Add yourself as a *Test user*,
-   then **Publish** the app so any visitor can use it. (`drive.file` is
-   non-sensitive, so no Google verification review is required.)
-4. **OAuth Client ID** — *Credentials → Create Credentials → OAuth client ID →
-   Web application*. Under *Authorised JavaScript origins* add your site origin,
-   e.g. `https://<you>.github.io`. Create, then copy the **Client ID**.
-5. **API key** — *Credentials → Create Credentials → API key*; copy it. Optional
-   but recommended: edit it → restrict *Application* to your website origin and
-   *API* to Picker + Drive.
-6. **Paste both** into `firmware/cloud_storage.js`:
-   ```js
-   google: { clientId: '…apps.googleusercontent.com', apiKey: 'AIza…', appId: '' }
-   ```
-   `appId` is optional (your project **number**, from the project's *Settings*).
-7. Reload the hosted site — the banner now shows **Google Drive**. Signing in and
-   picking the `.zip` imports it into the browser exactly like a local pack.
+Total size ≈ 530 MB — the bulk is the base64 image archive and the manual pages.
 
 ---
 
@@ -146,6 +86,3 @@ One-time setup in the [Google Cloud Console](https://console.cloud.google.com):
 - This is a fan project — not affiliated with, endorsed by, or sponsored by
   Nintendo. "Game & Watch" and related names are trademarks of their respective
   owners.
-- The `Database/rebuild.sql` seed data and `device_prices` are public/reference
-  data only. No private user vault data (people's notes, prices, photos) is
-  included in this backup, by design.

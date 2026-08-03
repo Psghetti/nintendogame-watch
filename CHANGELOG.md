@@ -29,14 +29,6 @@ _Nothing yet — new changes land here, then move into a dated version on releas
   missing, a "Batteries not included" banner offers the pack directly; the
   "install it locally" (builder) option is shown only when served from
   localhost, since it can't affect a remote/GitHub Pages deployment.
-- **Load a content pack from cloud storage** (Google Drive) — on the deployed
-  site the banner offers a "From cloud storage" option: sign in, pick your .zip
-  once (narrow `drive.file` scope — the site only sees the file you choose), and
-  it's imported into IndexedDB just like a local pack, so no repeat logins.
-  **Currently held off** behind a `CLOUD_ENABLED` master switch in
-  `firmware/cloud_storage.js` (all the cloud code is retained) until cloud setup is
-  finalised — flip that on and add a public OAuth Client ID + API key to enable.
-  Hidden on localhost by design.
 
 ### Fixed
 - **Device drawer would not open** (all titles): clicking a tile paused the live
