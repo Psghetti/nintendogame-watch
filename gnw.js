@@ -1374,6 +1374,75 @@ const GAMES = {
     hotspots: CRYSTAL_HOTSPOTS,
   },
 
+  /* ---- Table Top: Super Mario Bros. Special YM-901-S (1987) -------------
+     A cosmetic Table Top-form clone of the New Wide Screen Super Mario Bros
+     (smbn): byte-identical program+melody ROM (sha256 d4a1eb9d... /
+     05a26b5f..., the same blob smb/smbn already run), the same SM511 silicon,
+     and the same LCD segment SVG -- it REUSES smbn's gnw_smbn.svg rather than
+     carrying one of its own. Only the shell differs: a gold flip-lid Table Top
+     cabinet given away as a 1987 competition prize (~10,000 made), the rarest
+     of the three SMB Game & Watch variants. Everything internal (cpuType,
+     clockRam, lcdCBits, bootSyncCycles, inputRows, the boot/input flags, the
+     4-way D-pad + Jump wiring) is inherited from smbn via GAMES_HW_TWINS
+     below -- this entry declares only what the case changes.
+
+     Geometry MEASURED off the device photo (artwork/gnw_smbspecial/Unit.png,
+     2223x3940 px): the `screen` rect is the black LCD aperture; the hotspots
+     are the D-pad arms, the GAME/TIME/ALARM buttons and JUMP. All are a
+     first-pass measurement -- expected to be visually fine-tuned. */
+  smbspecial: {
+    title: 'Super Mario Bros. Special', subtitle: 'YM-901-S · 1987',
+    artPath: 'artwork/gnw_smbspecial/',
+    svgPath: 'artwork/gnw_smbn/gnw_smbn.svg',   // reuse smbn's LCD segment art
+    // Play-modal Unit.png is the TIGHTER "screen + control panel" crop
+    // (C:\GW_Mame\SMB_Special.png, 2223x2161) with its white backdrop and
+    // black LCD aperture knocked out to transparent. The tile + drawer show
+    // the FULL flip-lid device instead (a static hero, not this live view) --
+    // see other-super-mario-bros-special in STATIC_PREVIEW_IDS / its img key
+    // in index.html.
+    unitAspect: '2223 / 2161',
+    // The Animation/ PNGs in this bundle were COPIED from smbn, whose shell is
+    // a LANDSCAPE New Wide Screen -- pasting them onto this PORTRAIT tabletop
+    // crop showed a foreign, wrong-orientation overlay. So we ship no pressed-
+    // art (noPressedArt hides the img overlays) and instead glow the hotspot
+    // itself on press (pressHighlight -> .play-hotspot.pressed CSS), the clean
+    // feedback used where a cabinet has no usable pressed-state frames.
+    noPressedArt: true,
+    pressHighlight: true,
+    // Black LCD aperture measured on the zoomed crop: px 721,742 842x549 of
+    // 2223x2161 (verified with a red-overlay screenshot).
+    screen: { left: 32.43, top: 34.34, width: 37.88, height: 25.40 },
+    // PREVIEW-ART OVERRIDE (non-interactive tile + drawer stage only). The Play
+    // modal keeps the fields above (the ZOOMED screen+panel crop). The catalogue
+    // tile and the drawer's big device reveal instead show the FULL gold flip-lid
+    // cabinet, still LIVE -- a taller portrait Unit.png (artwork/gnw_smbspecial_full/,
+    // 2223x3940) whose white backdrop is knocked out and whose black LCD aperture
+    // is punched to alpha, with the smbn segments composited into the cabinet's own
+    // (smaller, lower) LCD rect. Only _mountPreviewInto (gnw.js) + tileEmuLayersHTML/
+    // showDeviceStage (index.html) consult game.preview; every other title has no
+    // .preview so is completely unaffected. LCD rect measured on the full cabinet
+    // via connected-components: px 708,2351 869x571 of 2223x3940 (same ~1.52 LCD
+    // aspect as the zoomed crop, so the wide smbn segments fill it identically).
+    preview: {
+      artPath: 'artwork/gnw_smbspecial_full/',
+      svgPath: 'artwork/gnw_smbn/gnw_smbn.svg',
+      unitAspect: '2223 / 3940',
+      screen: { left: 31.85, top: 59.67, width: 39.09, height: 14.49 },
+    },
+    // Buttons measured on the same zoomed crop (d-pad arms / GAME / TIME /
+    // ALARM / JUMP). First-pass -- expected to be visually fine-tuned.
+    hotspots: {
+      up:    { left: 30.00, top: 70.10, width: 4.27, height: 4.40 },
+      down:  { left: 30.00, top: 78.16, width: 4.27, height: 4.40 },
+      left:  { left: 25.73, top: 73.48, width: 4.27, height: 4.40 },
+      right: { left: 34.28, top: 73.48, width: 4.27, height: 4.40 },
+      jump:  { left: 67.43, top: 71.72, width: 7.38, height: 7.87 },
+      alarm: { left: 56.14, top: 67.42, width: 2.70, height: 2.78 },
+      time:  { left: 48.49, top: 67.05, width: 4.95, height: 3.33 },
+      gameA: { left: 41.25, top: 66.96, width: 4.95, height: 3.24 },
+    },
+  },
+
   climber: {
     title: 'Climber', subtitle: 'DR-802 · 1986',
     artPath: 'artwork/gnw_climber/',
@@ -2029,6 +2098,10 @@ const GAMES = {
 
   bombsweep: {
     title: 'Bomb Sweeper', subtitle: 'BD-62 · 1987',
+    // The D-pad's synthesized pressed crops (Animation/1-4-Flat.png, 76x75) get
+    // stretched full-screen by the full-frame overlay -- glow the d-pad hotspots
+    // instead. Game A/B/Time keep their real full-frame pressed art.
+    highlightButtons: ['btn1', 'btn2', 'btn3', 'btn4'],
     artPath: 'artwork/gnw_bsweep/',
     // Real Unit.png is 1767x2199, same canvas size as every other Multi
     // Screen title so far (DK-52/DK-II/Green House) despite this being a
@@ -2142,6 +2215,9 @@ const GAMES = {
 
   gcliff: {
     title: 'Gold Cliff', subtitle: 'MV-64 · 1988',
+    // Same synthesized d-pad crops as Bomb Sweeper -- glow the d-pad hotspots;
+    // Game/Continue/Time/Jump keep their real full-frame pressed art.
+    highlightButtons: ['btn1', 'btn2', 'btn3', 'btn4'],
     artPath: 'artwork/gnw_gcliff/',
     // Real Unit.png is 1767x2199, same canvas as every other late Multi
     // Screen title -- see ssparky's own unitAspect comment for why this
@@ -2230,6 +2306,9 @@ const GAMES = {
 
   zelda: {
     title: 'Zelda', subtitle: 'ZL-65 · 1989',
+    // ALL of Zelda's pressed crops (d-pad + Game/Continue/Time/Attack) are small
+    // and stretch full-screen -- glow every button hotspot instead.
+    highlightButtons: ['btn1', 'btn2', 'btn3', 'btn4', 'jump', 'gameA', 'gameB', 'time'],
     artPath: 'artwork/gnw_zelda/',
     // Real Unit.png (ZL-65.png in the source artwork bundle, renamed to
     // the usual Unit.png here for consistency) is 1767x2199, same canvas
@@ -3807,6 +3886,7 @@ const HW_TWIN_CASE_SPECIFIC = new Set([
      rather than presenting both as fact. */
 const GAMES_HW_TWINS = {
   smb: 'smbn', climber: 'climbern', bfight: 'bfightn',      // verified by hash
+  smbspecial: 'smbn',                                       // verified by hash (same ROM as smbn)
   dkjrt: 'dkjrp', snoopyt: 'snoopyp', popeyet: 'popeyep',   // believed, unverifiable
 };
 for (const [borrower, owner] of Object.entries(GAMES_HW_TWINS)) {
@@ -5772,9 +5852,19 @@ class GnwEmulator {
     if (this.audio) this.audio.init();
     if (this._interactive) {
       this._btnEls = {};
-      for (const name in BUTTON_DEFS) this._btnEls[name] = document.getElementById(BUTTON_DEFS[name].imgId);
+      // _hotspotEls: the clickable hotspot DIVs, cached alongside the img
+      // overlays. Used by the press-HIGHLIGHT path (game.pressHighlight) for
+      // titles whose bundle has no correctly-oriented pressed-state art -- we
+      // glow the hotspot instead of swapping in a foreign PNG. See
+      // _updateButtonArt() + the .play-hotspot.pressed CSS.
+      this._hotspotEls = {};
+      for (const name in BUTTON_DEFS) {
+        this._btnEls[name] = document.getElementById(BUTTON_DEFS[name].imgId);
+        this._hotspotEls[name] = document.querySelector('#play-emu-root .play-hotspot.' + BUTTON_DEFS[name].hotspotClass);
+      }
     } else {
       this._btnEls = null;
+      this._hotspotEls = null;
     }
   }
 
@@ -6268,13 +6358,27 @@ class GnwEmulator {
   _updateButtonArt() {
     if (!this._btnEls) return;
     const cpu = this.cpu;
+    // pressHighlight: this title's cabinet has no correctly-oriented pressed-
+    // state PNGs (e.g. smbspecial's portrait Table Top reuses smbn's LANDSCAPE
+    // Animation frames), so instead of pasting a foreign PNG we glow the
+    // hotspot itself. The img overlays stay hidden (see noPressedArt in
+    // _applyGameArtwork); we toggle .pressed on the hotspot DIV instead.
+    const highlightAll = !!this.game.pressHighlight;
+    const hlButtons = this.game.highlightButtons;   // per-button glow (e.g. wrong-size synthesized d-pad crops)
     for (const name in this._btnEls) {
-      const el = this._btnEls[name];
-      if (!el) continue;
       const swap = !!this.game.swapHammers;
       const pressed = name === 'left' ? (swap ? cpu.inBA === 0 : cpu.inB === 0)
                     : name === 'right' ? (swap ? cpu.inB === 0 : cpu.inBA === 0)
                     : this._held(name);
+      if (highlightAll || (hlButtons && hlButtons.indexOf(name) >= 0)) {
+        const hs = this._hotspotEls && this._hotspotEls[name];
+        if (hs) hs.classList.toggle('pressed', pressed);
+        const el0 = this._btnEls[name];
+        if (el0) el0.classList.remove('show');   // never stretch this button's wrong-size overlay
+        continue;
+      }
+      const el = this._btnEls[name];
+      if (!el) continue;
       el.classList.toggle('show', pressed);
     }
   }
@@ -7709,6 +7813,14 @@ function _mountPreviewInto(containerEl, gameKey, store, storeKey) {
   if (!containerEl) return;
   const game = GAMES[gameKey];
   if (!game) return;
+  // PREVIEW-ART OVERRIDE: a title may declare game.preview to show DIFFERENT art
+  // in the non-interactive previews (tile + drawer stage) than in the Play modal.
+  // Only smbspecial uses this today (full flip-lid cabinet here, zoomed crop in
+  // Play). `pv` is the source of truth for the screen-glass box + segment SVG on
+  // this path; the tile's Unit/Background <img> srcs are set from previewFolder in
+  // deviceCardHTML/tileEmuLayersHTML. Titles without .preview fall back to `game`,
+  // so every other device is byte-for-byte unaffected.
+  const pv = game.preview || game;
   if (store[storeKey]) { store[storeKey].stop(); store[storeKey] = null; }
   const screen = containerEl.querySelector('.tile-emu-svg');
   if (!screen) return;
@@ -7763,8 +7875,9 @@ function _mountPreviewInto(containerEl, gameKey, store, storeKey) {
   [screen, bgEl, hideEl].forEach(el => {
     if (!el) return;
     // Crystal Screen backing is inset from the segments -- see the matching
-    // comment in _applyGameArtwork().
-    const rect = (game.panel && el === bgEl) ? game.panel.bg : game.screen;
+    // comment in _applyGameArtwork(). (pv.screen = the preview-override glass box
+    // when this title has one, else game.screen -- see the `pv` note above.)
+    const rect = (game.panel && el === bgEl) ? game.panel.bg : pv.screen;
     el.style.left = rect.left + '%';
     el.style.top = rect.top + '%';
     el.style.width = rect.width + '%';
@@ -7817,7 +7930,9 @@ function _mountPreviewInto(containerEl, gameKey, store, storeKey) {
   };
 
   const fetchSvg = _resolveArt;   // artwork now served from firmware/artwork.json.gz via the _resolveArt gateway
-  const fetches = game.svgPath2 ? Promise.all([fetchSvg(game.svgPath), fetchSvg(game.svgPath2)]) : fetchSvg(game.svgPath).then(txt => [txt, null]);
+  // pv.svgPath = the preview-override segment art when present (smbspecial reuses
+  // smbn's regardless, so this is a no-op for it, but keeps the override coherent).
+  const fetches = pv.svgPath2 ? Promise.all([fetchSvg(pv.svgPath), fetchSvg(pv.svgPath2)]) : fetchSvg(pv.svgPath).then(txt => [txt, null]);
 
   _romsReady.then(() => fetches)
     .then(([txt, txt2]) => {

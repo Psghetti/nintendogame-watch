@@ -167,6 +167,8 @@ $HashTableJson = @'
 {"sha256":"05a26b5f9e2ae462a38cb08cc65e39bfaf1e1c992e7f227476ecd92eaa94b115","bytes":256,"device":"smb","part":"melody"},
 {"sha256":"d4a1eb9d9401edadcb7f903f86918be3000e7afee5ede4b51efa1ea266e38de9","bytes":4096,"device":"smbn","part":"rom"},
 {"sha256":"05a26b5f9e2ae462a38cb08cc65e39bfaf1e1c992e7f227476ecd92eaa94b115","bytes":256,"device":"smbn","part":"melody"},
+{"sha256":"d4a1eb9d9401edadcb7f903f86918be3000e7afee5ede4b51efa1ea266e38de9","bytes":4096,"device":"smbspecial","part":"rom"},
+{"sha256":"05a26b5f9e2ae462a38cb08cc65e39bfaf1e1c992e7f227476ecd92eaa94b115","bytes":256,"device":"smbspecial","part":"melody"},
 {"sha256":"921f7b1683598c928ac486dbdf3741bfa09a28c975aead8fa15375a902699885","bytes":4096,"device":"snoopyp","part":"rom"},
 {"sha256":"2c1e9bfc8005494fc281c21dd9dbae92d71355fcb802386c79f48bf711232bab","bytes":256,"device":"snoopyp","part":"melody"},
 {"sha256":"921f7b1683598c928ac486dbdf3741bfa09a28c975aead8fa15375a902699885","bytes":4096,"device":"snoopyt","part":"rom"},

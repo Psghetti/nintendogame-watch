@@ -147,7 +147,7 @@
      through the empty corners -- see the .tile-emu / .play-device transparent
      overrides below. */
   :root[data-theme="light"] .device-card:not([data-series="crystal"]):not([data-series="microvs"]):not([data-series="panorama"]):not([data-series="tabletop"]):not([data-series="multiscreen"]) .img .tile-emu,
-  :root[data-theme="light"] .play-device:not([data-series="microvs"]):not([data-series="panorama"]):not([data-series="tabletop"]):not([data-series="multiscreen"]) { background: #dbe0e8; }
+  :root[data-theme="light"] .play-device:not([data-series="microvs"]):not([data-series="panorama"]):not([data-series="tabletop"]):not([data-series="multiscreen"]):not([data-series="special"]) { background: #dbe0e8; }
   :root[data-theme="light"] header { background: rgba(248,249,251,.82); }
   :root[data-theme="light"] .collection-toolbar { background: var(--bg-2); }
   :root[data-theme="light"] .device-modal-img { background-color: var(--bg-3); }
@@ -913,11 +913,13 @@
   .device-card[data-series="panorama"] .img .tile-emu,
   .device-card[data-series="tabletop"] .img .tile-emu,
   .device-card[data-series="multiscreen"] .img .tile-emu { background: transparent; }
+  .device-card[data-series="special"] .img .tile-emu { background: transparent; }
   /* No fill behind the screen either -- genuinely transparent, so the LCD shows
      whatever is actually behind the device: the light card gradient on a grid
      tile, or the page/backdrop in the drawer. (A flat colour here reads as a
      fake white rectangle, not see-through glass.) */
   .device-card[data-series="crystal"] .tile-emu-bg { background-color: transparent; }
+  .device-card[data-series="special"] .tile-emu-bg { background-color: transparent; }
   .device-card .img .tile-emu-unit {
     position: absolute; inset: 0; width: 100%; height: 100%; display: block;
   }
@@ -1410,6 +1412,14 @@
   }
   /* Drop the tile's light gradient panel -- the device floats on the backdrop. */
   #device-stage .stage-img { background: none; border-bottom: 0; }
+
+  /* Super Mario Bros. Special (series 'special') is by far the tallest G&W, so
+     in the drawer reveal ONLY, size it by viewport HEIGHT (90vh) instead of the
+     default min(920px) width cap -- the full flip-lid cabinet then reads at its
+     true stature. Scoped to #device-stage + [data-series="special"], so the
+     catalogue tile and the play modal keep their own sizing. */
+  #device-stage .stage-card[data-series="special"] { width: auto; height: 90vh; max-width: 100%; }
+  #device-stage .stage-card[data-series="special"] .stage-img { width: auto; height: 100%; aspect-ratio: 2223 / 3940; }
 
   /* Slide in from off-screen left, settle flat by ~halfway, THEN turn slowly to
      ~20° over the back half so the rotation reads as a deliberate final flourish
@@ -2702,6 +2712,7 @@
   .play-device[data-series="panorama"],
   .play-device[data-series="tabletop"],
   .play-device[data-series="multiscreen"] { background: transparent; }
+  .play-device[data-series="special"] { background: transparent; }
   .play-unit-img {
     position: absolute; inset: 0; width: 100%; height: 100%;
     object-fit: fill; display: block;
@@ -2822,6 +2833,17 @@
   .play-hotspot {
     position: absolute; border-radius: 50%; cursor: pointer;
     -webkit-tap-highlight-color: transparent;
+  }
+  /* Press HIGHLIGHT (game.pressHighlight in gnw.js): for cabinets with no
+     correctly-oriented pressed-state art, glow the hotspot while held instead
+     of swapping in a device PNG. A soft radial fill + ring, keyed to the LCD
+     accent, sized to the hotspot box (round buttons via border-radius:50%). */
+  .play-hotspot.pressed {
+    background: radial-gradient(circle at 50% 50%,
+      rgba(255,246,190,0.75) 0%, rgba(255,221,90,0.5) 50%, rgba(255,214,64,0) 100%);
+    box-shadow: 0 0 14px 4px rgba(255,213,64,0.85),
+                0 0 3px 1px rgba(255,255,255,0.9),
+                inset 0 0 8px rgba(255,255,255,0.65);
   }
   .play-hotspot.hammer-left  { left: 4.09%;  top: 58.53%; width: 18.05%; height: 26.80%; }
   .play-hotspot.hammer-right { left: 77.91%; top: 58.53%; width: 18.05%; height: 26.80%; }
@@ -11097,6 +11119,18 @@ const DEVICE_INFO_TWINS = {
     battery: '2× LR44 (Crystal Screen chassis)',
     lcdNote: "The electrode map is the re-release's, unchanged — same ROM driving the same segments. What differs is the glass in front of them: the Crystal Screen's panel is transparent, so the segments are read against whatever is behind the unit rather than against a printed backing.",
   },
+  /* Super Mario Bros. Special YM-901-S (Table Top competition prize, 1987).
+     Same mechanism as the Crystal units above and verified the same way: the
+     dump is byte-identical to smbn/smb (sha256 d4a1eb9d...), so verified: true
+     -- a fact, not the Table Tops' assumption below. No `art` override: it
+     reuses smbn's own LCD segment SVG, so the electrode map/profile on its
+     Hardware and Emulation tabs should be smbn's, unchanged. */
+  'other-super-mario-bros-special': {
+    twin: 'newwidescreen-super-mario-bros',
+    twinName: 'Super Mario Bros.',
+    models: ['YM-901-S', 'YM-105'],
+    battery: '2× LR44 (Table Top cabinet)',
+  },
   /* Table Top Donkey Kong Jr. Same mechanism as the Crystal units above, but
      `verified: false` -- and that one flag is the difference between a fact
      and an assumption. CJ-71 was never dumped, so unlike every pair above,
@@ -11541,6 +11575,9 @@ const SOURCE_ROM_HASHES = [
   // YM-105 (New Wide Screen, 1988).
   { key: 'smb',       title: 'Super Mario Bros.',      subtitle: 'YM-801 · 1986', cpu: 'sm511', bytes: 4096, sha256: 'd4a1eb9d9401edadcb7f903f86918be3000e7afee5ede4b51efa1ea266e38de9' },
   { key: 'smbn',      title: 'Super Mario Bros.',      subtitle: 'YM-105 · 1988', cpu: 'sm511', bytes: 4096, sha256: 'd4a1eb9d9401edadcb7f903f86918be3000e7afee5ede4b51efa1ea266e38de9' },
+  // YM-901-S (Table Top competition prize, 1987) -- the same shared dump once
+  // more, byte-identical to smb/smbn above (verified by hash, not assumed).
+  { key: 'smbspecial', title: 'Super Mario Bros. Special', subtitle: 'YM-901-S · 1987', cpu: 'sm511', bytes: 4096, sha256: 'd4a1eb9d9401edadcb7f903f86918be3000e7afee5ede4b51efa1ea266e38de9' },
   // SM-73 (Table Top) against SM-91's hash -- believed, never dumped, as above.
   { key: 'snoopyt',   title: 'Snoopy',                 subtitle: 'SM-73 · 1983 (assumed — never dumped)', cpu: 'sm511', bytes: 4096, sha256: '921f7b1683598c928ac486dbdf3741bfa09a28c975aead8fa15375a902699885' },
   { key: 'snoopyp',   title: 'Snoopy',                 subtitle: 'SM-91 · 1983', cpu: 'sm511', bytes: 4096, sha256: '921f7b1683598c928ac486dbdf3741bfa09a28c975aead8fa15375a902699885' },
@@ -12934,6 +12971,22 @@ const GNW_EMULATED_GAMES = {
   'crystal-super-mario-bros':             { key: 'smb',     folder: 'artwork/gnw_smb' },
   'crystal-climber':                      { key: 'climber', folder: 'artwork/gnw_climber' },
   'crystal-balloon-fight':                { key: 'bfight',  folder: 'artwork/gnw_bfight' },
+  // Special (1987): Super Mario Bros. Special YM-901-S -- the ultra-rare gold
+  // Table Top competition-prize unit. Cosmetic clone of New Wide Screen SMB:
+  // same SM511 ROM (byte-identical to smbn/smb) and the same LCD segment SVG
+  // (smbspecial reuses gnw_smbn.svg); only the gold Table Top shell differs.
+  // See GAMES.smbspecial + GAMES_HW_TWINS in gnw.js.
+  // previewFolder: the NON-INTERACTIVE tile + drawer-stage previews show the FULL
+  // gold flip-lid cabinet (artwork/gnw_smbspecial_full/), still LIVE; the Play modal
+  // keeps `folder`'s zoomed screen+panel crop. Consumed by tileEmuLayersHTML +
+  // showDeviceStage, paired with GAMES.smbspecial.preview in gnw.js.
+  // sheenMask (optional, smbspecial only today): a dedicated alpha mask for the
+  // drawer-stage specular sheen so the moving highlight falls ONLY on the
+  // reflective surfaces (gold case + hinge, LCD glass, blue control panel) and
+  // NOT on the matte grey packing foam. Unit.png keeps the foam opaque (masking
+  // the sheen to it would light the foam), so showDeviceStage prefers this file
+  // for --unit-mask when present. Every device without the field is unaffected.
+  'other-super-mario-bros-special':       { key: 'smbspecial', folder: 'artwork/gnw_smbspecial', previewFolder: 'artwork/gnw_smbspecial_full', sheenMask: 'artwork/gnw_smbspecial_full/SheenMask.png' },
   // Micro Vs. System (1984) -- the two-player units. See the series comment
   // on GAMES.boxing in gnw.js for the input shape and why the controllers
   // aren't clickable.
@@ -12996,6 +13049,15 @@ const GNW_EMULATED_GAMES = {
 const GNW_GAME_KEY_TO_DEVICE = Object.fromEntries(
   Object.entries(GNW_EMULATED_GAMES).map(([deviceId, g]) => [g.key, deviceId])
 );
+
+// Emulated devices whose TILE and desktop DRAWER should show a STATIC product
+// photo (the device's `img`/hero) instead of the live LCD preview -- while the
+// Play modal still runs the emulator normally. Used where a device's playable
+// artwork (its Unit.png) is a tight screen+panel crop that would look wrong as
+// the catalogue image: Super Mario Bros. Special plays on the zoomed panel but
+// shows its full gold flip-lid cabinet on the tile/drawer. Gated in
+// deviceCardHTML (isTileEmu), openDevice (_hasDemo) and showDeviceStage.
+const STATIC_PREVIEW_IDS = new Set([]);   // (was smbspecial) — now runs a LIVE tile/stage preview like every other emulated device
 
 const GAME_SLUGS = {
   'silver-ball':                'nintendo-ball',
@@ -13964,12 +14026,12 @@ const DEVICES = [
     facts:{ Released:'August 1986', Developer:'Nintendo R&D1', Players:'1', 'Game Modes':'Game A, Game B', Display:'Transparent LCD (Crystal Screen)', Power:'2× LR44 cells', Notes:'Final Crystal Screen unit.' } },
 
   // SPECIAL
-  { id:'other-super-mario-bros-special', name:'Super Mario Bros. (Special)', series:'special', model:'YM-901', released:'1987-08-01', img:'SpecialSuperMarioBros1',
-    overview:`A Famicom-promotion giveaway from 1985. The Super Mario Bros. Special was distributed in limited numbers as a marketing tie-in with the NES launch of Super Mario Bros., making it one of the rarest items in Nintendo's entire history.`,
-    gameplay:`Mechanically the unit plays a World 1-1 loop similar to the later mainstream Super Mario Bros. units — Mario auto-runs, the player jumps. The Special's distinguishing feature is its commemorative casing and promotional packaging rather than unique gameplay.`,
-    legacy:`Super Mario Bros. (Special) routinely sells for more at auction than any other Game & Watch in working, boxed condition. Estimated production was a few thousand units, almost all in Japan, and most surviving examples have not been opened. A footnote-grade collectible that has become a grail item.`,
+  { id:'other-super-mario-bros-special', name:'Super Mario Bros. (Special)', series:'special', model:'YM-901-S', released:'1987-08-01', img:'gnw_smbspecial_full.webp',
+    overview:`A 1987 competition-prize giveaway, never sold at retail. The Super Mario Bros. Special (YM-901-S) is a gold Table Top-style unit with a flip-up lid, handed out in small numbers as a promotional prize — making it the rarest of the three Super Mario Bros. Game & Watch units and one of the most sought-after items in the entire line.`,
+    gameplay:`Hardware-identical to the mainstream Super Mario Bros. Game & Watch: the same Sharp SM511 chip runs the same program ROM, so it plays the exact same auto-run-and-jump World 1-1 loop — Mario advances automatically while the player times jumps over pits and enemies with the JUMP button. What sets the Special apart is entirely the shell: a commemorative gold Table Top cabinet rather than the retail New Wide Screen or Crystal Screen cases.`,
+    legacy:`Super Mario Bros. (Special) routinely sells for more at auction than almost any other Game & Watch in working, boxed condition. Estimated production was on the order of ten thousand units, almost all in Japan, and many surviving examples have never been opened. Because it shares its ROM byte-for-byte with the retail Super Mario Bros. units, the game itself is fully playable here — it is the casing and provenance, not the software, that make it a grail-tier collectible.`,
     games:[{name:'Game A',desc:'Standard scroll.'},{name:'Game B',desc:'Faster scroll.'}],
-    facts:{ Released:'1 August 1987 (F-1 Grand Prix prize)', Developer:'Nintendo R&D1', Players:'1', 'Game Modes':'Game A, Game B', Display:'LCD', Power:'2× LR44 cells', Notes:'Promotional release; only a few thousand units produced.' } },
+    facts:{ Released:'1 August 1987 (competition prize)', Developer:'Nintendo R&D1', Players:'1', 'Game Modes':'Game A, Game B', Display:'Segment LCD (Table Top cabinet)', Power:'2× LR44 cells', Notes:'Promotional giveaway; roughly ten thousand units produced. Same SM511 ROM as the retail Super Mario Bros.' } },
 
   // REISSUE
   { id:'reissue-ball', name:'Ball (Reissue)', series:'reissue', model:'RGW-001', released:'2010-04', img:'SilverBall1',
@@ -14386,6 +14448,10 @@ const TALL_MULTISCREEN_IDS = new Set([
 // box instead, so they've moved to TALL_MULTISCREEN_IDS.)
 const TALL_2X_IDS = new Set([
   'supercolor-spitball-sparky', 'supercolor-crab-grab',
+  // SMB Special's static tile/drawer hero is its tall gold flip-lid cabinet --
+  // give it the same tall 5/8 .img box + auto-90% hero sizing as the Super
+  // Color units so the portrait product shot is framed the same way.
+  'other-super-mario-bros-special',
   // (Panorama titles were here for their oversized combo box; moved to
   // TALL_MULTISCREEN_IDS to match the Table Tops per the user's request.)
 ]);
@@ -14508,7 +14574,12 @@ async function onVariantChange(deviceId, variantId) {
 // order lives in ONE place -- gnwMountTilePreview/gnwMountBigPreview both query
 // these same class names. `g` is a GNW_EMULATED_GAMES entry.
 function tileEmuLayersHTML(g) {
-  return `<img class="tile-emu-bg" src="${g.folder}/${g.bgFile || 'Background.png'}" alt=""><div class="tile-emu-svg"></div>${g.hideLines ? `<img class="tile-emu-hide" src="${g.folder}/Background2.png" alt="">` : ''}<img class="tile-emu-bg-2" alt="" style="display:none"><div class="tile-emu-svg-2"></div><img class="tile-emu-overlay" alt="" style="display:none"><img class="tile-emu-unit" src="${g.folder}/Unit.png" alt=""><img class="tile-emu-gradient" alt="" style="display:none"><img class="tile-emu-gradient-2" alt="" style="display:none">`;
+  // previewFolder (only smbspecial today): the tile + drawer-stage previews are
+  // NON-INTERACTIVE, so they load the alternate full-cabinet Unit/Background from
+  // previewFolder instead of `folder`'s Play-modal crop. The screen-glass box for
+  // these files comes from GAMES.<key>.preview.screen in gnw.js (_mountPreviewInto).
+  const folder = g.previewFolder || g.folder;
+  return `<img class="tile-emu-bg" src="${folder}/${g.bgFile || 'Background.png'}" alt=""><div class="tile-emu-svg"></div>${g.hideLines ? `<img class="tile-emu-hide" src="${folder}/Background2.png" alt="">` : ''}<img class="tile-emu-bg-2" alt="" style="display:none"><div class="tile-emu-svg-2"></div><img class="tile-emu-overlay" alt="" style="display:none"><img class="tile-emu-unit" src="${folder}/Unit.png" alt=""><img class="tile-emu-gradient" alt="" style="display:none"><img class="tile-emu-gradient-2" alt="" style="display:none">`;
 }
 
 // The two 35th-anniversary TFT colour units and their ARM-twin "unit" key
@@ -14565,7 +14636,7 @@ function deviceCardHTML(d) {
   // on their tile instead of a static photo (hardware view only — box-art
   // view modes still show the packaging image as normal).
   const emuGame = GNW_EMULATED_GAMES[d.id];
-  const isTileEmu = !!emuGame && viewMode === 'hardware';
+  const isTileEmu = !!emuGame && viewMode === 'hardware' && !STATIC_PREVIEW_IDS.has(d.id);
   // The two 35th-anniversary TFT colour units run the ARM digital twin instead
   // of the gnw LCD engine -- a live <canvas> booting to the clock, lazily
   // loaded + gated (see mountTftTilePreviews). Hardware view only, exactly like
@@ -15032,6 +15103,26 @@ function resumeCollectionTiles() {
 function showDeviceStage(id) {
   const stage = document.getElementById('device-stage');
   if (!stage) return;
+  // Static-preview devices (e.g. SMB Special): their gnw emulator Unit.png is the
+  // ZOOMED play crop (screen + control panel), not the full flip-lid cabinet the
+  // collection shows, so there's no clean LIVE full-device preview to mount here.
+  // Instead show the full-cabinet product shot (d.img) as a big STATIC stage-card,
+  // reusing the same slide-in + cursor tilt as the live reveals. The cabinet
+  // renders through `.device-card .img::after` via the `--hero` custom property --
+  // the exact mechanism the catalogue tile uses -- so it can't regress to the
+  // empty/black state the (unsupported) live path produced here.
+  if (STATIC_PREVIEW_IDS.has(id)) {
+    const sd = DEVICES.find(x => x.id === id);
+    const heroSrc = (sd && sd.img && !BROKEN_IMG_KEYS.has(sd.img)) ? imgSrc(sd.img) : '';
+    if (!heroSrc) { hideDeviceStage(); return; }
+    const sSeries = (sd && sd.series) || '';
+    stage.innerHTML = `<div class="device-card stage-card static-stage" data-series="${sSeries}"><div class="img stage-img" style="--hero:url('${heroSrc.replace(/"/g, '&quot;')}')"></div></div>`;
+    stage.classList.remove('open');
+    void stage.offsetWidth;
+    stage.classList.add('open');
+    initStageTilt(stage.querySelector('.stage-card'));
+    return;
+  }
   // The two TFT colour units use the ARM twin, not the gnw engine -- their big
   // reveal is a separate branch that mounts a live twin into its own slot.
   if (TFT_TWIN_UNITS[id]) { showTftDeviceStage(id, stage); return; }
@@ -15056,7 +15147,12 @@ function showDeviceStage(id) {
     // silhouette via its Unit.png -- see the .stage-sheen CSS.
     const sheen = document.createElement('div');
     sheen.className = 'stage-sheen';
-    sheen.style.setProperty('--unit-mask', `url("${g.folder}/Unit.png")`);
+    // Mask the sheen to the SAME cabinet the stage shows -- previewFolder's full
+    // Unit.png for smbspecial, else the regular folder (see tileEmuLayersHTML).
+    // A device may override the sheen mask (g.sheenMask) so the highlight rides
+    // only its reflective surfaces, not matte parts (smbspecial's grey foam).
+    const sheenMaskUrl = g.sheenMask || `${(g.previewFolder || g.folder)}/Unit.png`;
+    sheen.style.setProperty('--unit-mask', `url("${sheenMaskUrl}")`);
     emuEl.appendChild(sheen);
   }
   if (emuEl && window.gnwMountBigPreview) window.gnwMountBigPreview(emuEl, g.key);
@@ -15723,12 +15819,24 @@ function openDevice(id) {
   // GNW_EMULATED_GAMES). Mark the body so the CSS gives the drawer a quick slide
   // instead of the ~1.7s device-synced timing that would otherwise wait on a
   // demo device that never appears. Toggled every open so it can't go stale.
-  const _hasDemo = ((typeof GNW_EMULATED_GAMES !== 'undefined') && !!GNW_EMULATED_GAMES[id]) || !!TFT_TWIN_UNITS[id];
+  const _mobileView = window.matchMedia('(max-width: 1200px)').matches;
+  // A LIVE left-reveal: the gnw LCD demo or the ARM twin. Static-preview devices
+  // (SMB Special) are deliberately excluded -- their emulator Unit.png is the
+  // ZOOMED play crop, not the full flip-lid cabinet -- so they get a STATIC
+  // full-cabinet stage instead (see showDeviceStage's STATIC_PREVIEW_IDS branch).
+  const _liveDemo = (((typeof GNW_EMULATED_GAMES !== 'undefined') && !!GNW_EMULATED_GAMES[id]) && !STATIC_PREVIEW_IDS.has(id)) || !!TFT_TWIN_UNITS[id];
+  // Static-preview devices DO get a left device on DESKTOP (the static cabinet),
+  // so they keep the device-synced drawer timing there; on mobile the stage is
+  // hidden and the cabinet shows as the drawer hero, so fall back to the quick
+  // slide. `no-demo-device` (quick slide) only when nothing shows on the left.
+  const _staticStage = STATIC_PREVIEW_IDS.has(id) && !!(d && d.img) && !_mobileView;
+  const _hasDemo = _liveDemo || _staticStage;
   document.body.classList.toggle('no-demo-device', !_hasDemo);
   // Mobile (≤1200px): the big left-side #device-stage reveal is hidden, so instead
   // show the SAME live demo inline as the drawer's first "image". One device
-  // rendered, never two. (Below, showDeviceStage is skipped for these.)
-  const _mobileDemo = _hasDemo && window.matchMedia('(max-width: 1200px)').matches;
+  // rendered, never two. (Below, showDeviceStage is skipped for these.) Only the
+  // LIVE-demo titles mount an inline demo -- static-preview devices never do.
+  const _mobileDemo = _liveDemo && _mobileView;
   _openDeviceId = id;
   hwStopReading(); // in case a previous device's drawer was mid-read-aloud
   const s = seriesById(d.series);
