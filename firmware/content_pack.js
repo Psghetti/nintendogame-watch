@@ -28,6 +28,7 @@
   // --- identity manifest (hashes + sizes only, generated from the builder) ----
   var ROM_MANIFEST = [
 {"sha256":"1b1bb844c4bb0481a87e6c114a438b2d4e308c1581f4e7dd7dfa7ff8222d1cfd","bytes":1856,"device":"ball","part":"rom"},
+{"sha256":"1b1bb844c4bb0481a87e6c114a438b2d4e308c1581f4e7dd7dfa7ff8222d1cfd","bytes":1856,"device":"ballreissue","part":"rom"},
 {"sha256":"38bfbb54eedb3761804d6e659da76e2c2dc0f916606ca081a6f0854c15aaba05","bytes":4096,"device":"bfight","part":"rom"},
 {"sha256":"7f17e2032b8a0037d51f91aa0900f8c0e28d9a5e4e89c96ada1a893dcbc7ef2b","bytes":256,"device":"bfight","part":"melody"},
 {"sha256":"38bfbb54eedb3761804d6e659da76e2c2dc0f916606ca081a6f0854c15aaba05","bytes":4096,"device":"bfightn","part":"rom"},

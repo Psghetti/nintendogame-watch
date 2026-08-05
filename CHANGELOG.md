@@ -7,6 +7,36 @@ All notable changes to this project are recorded here. The format is based on
 
 _Nothing yet — new changes land here, then move into a dated version on release._
 
+## [1.2.0] — 2026-08-05
+
+### Added
+- **Super Mario Bros. Special** (YM-901-S, 1987) — the ultra-rare Table Top
+  competition prize is now playable. It runs the standard Super Mario Bros. game
+  (a byte-identical ROM) inside its gold flip-lid cabinet, with a live tile and
+  drawer preview and a foam-aware drawer sheen (matte foam, glossy case/screen).
+- **Ball (reissue)** (RGW-001, 2010) — the Club Nintendo reissue of the very
+  first Game & Watch is now playable, running the original AC-01 ROM (the
+  reissue's own firmware was never dumped; the added mute is covered by the
+  built-in software mute).
+- **Multi Screen save thumbnails now show BOTH LCD screens.** Stacked units
+  (Zelda, Bomb Sweeper, Gold Cliff, DK-52…) get a two-screen thumbnail in a 4×2
+  grid; side-by-side units (Mario Bros., Lifeboat…) a 2×3 grid — so a save slot
+  finally shows what's actually happening on screen.
+
+### Changed
+- Save/load thumbnails are higher-resolution and reproduce each screen's exact
+  in-game proportions — no more squish or blur.
+- The on-screen emulator diagnostic counter (fps/frame/etc.) is hidden in normal
+  play; it now appears only in **Developer Mode**.
+- Removed the scrollbar from the save/load panel.
+
+### Fixed
+- Multi Screen arrow-key press art (Bomb Sweeper, Gold Cliff, Zelda) no longer
+  balloons to full-screen — the d-pad highlights the pressed button instead.
+- **Light mode:** Super Mario Bros. (Special) no longer shows a white border
+  around the cut-out device, and the save panel's Load/Delete buttons are legible
+  again (they were light-green/red on a light background).
+
 ## [1.1.0] — 2026-08-03
 
 ### Added

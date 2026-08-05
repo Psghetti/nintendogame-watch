@@ -194,6 +194,28 @@ const GAMES = {
     fixedRow: 0,
   },
 
+  // 2010 Club Nintendo faithful reissue of Ball (AC-01): identical front, same
+  // game. The reissue's own firmware (it adds a hardware mute switch) was never
+  // dumped, so this runs the AC-01 ROM as a faithful stand-in -- the mute is
+  // covered by the site's own software mute. Art + LCD reused from ball.
+  ballreissue: {
+    title: 'Ball (reissue)', subtitle: 'RGW-001 · 2010',
+    artPath: 'artwork/gnw_ball/',
+    svgPath: 'artwork/gnw_ball/gnw_ball.svg',
+    clockRam: { hT: 72, hO: 73, mT: 74, mO: 75, sT: 76, sO: 60 },
+    screen: { left: 27.91, top: 23.26, width: 44.00, height: 44.12 },
+    hideLines: true,
+    hotspots: {
+      left:  { left: 4.99,  top: 59.93, width: 16.26, height: 24.20 },
+      right: { left: 78.72, top: 59.93, width: 16.26, height: 24.20 },
+      gameA: { left: 45.80, top: 77.80, width: 12.21, height: 18.13 },
+      gameB: { left: 56.35, top: 77.80, width: 12.21, height: 18.13 },
+      time:  { left: 66.82, top: 77.80, width: 12.21, height: 18.13 },
+    },
+    inputRows: [ { time: 1, gameB: 2, gameA: 4 } ],
+    fixedRow: 0,
+  },
+
   flagman: {
     title: 'Flagman', subtitle: 'FL-02 · 1980',
     artPath: 'artwork/gnw_flagman/',
@@ -7496,8 +7518,65 @@ window.gnwLoadState = function(st){
 // swaps into the play area in place (no reload) and freezes the emulator while
 // it's up; Back thaws it. All of this lives here (not index.html) because it
 // needs the live _emu and the on-screen LCD to build each slot's thumbnail.
+// Storage always holds the maximum (12) so no stored save is ever destroyed
+// when a device that renders fewer slots (dual-screen) is opened -- we only
+// RENDER the device-appropriate count.
 const _SAVE_SLOTS = 12;
 const _saveKeyFor = k => 'gnw.saves.' + k;
+
+// Multi Screen (dual-LCD) devices show BOTH screens per thumbnail, so the grid
+// reflows to fit the new thumbnail shape:
+//   vertical  (screen2 stacked BELOW screen1)  -> 8 slots, 4 cols, tall thumb
+//   horizontal(screen2 to the RIGHT of screen1)-> 6 slots, 2 cols, wide thumb
+//   single screen                              -> 12 slots, 4 cols (unchanged)
+// Orientation comes from which axis the two screens are offset along.
+function _saveDualOrient(game){
+  if (!game || !game.dualScreen || !game.screen || !game.screen2) return null;
+  var dl = Math.abs(game.screen2.left - game.screen.left);
+  var dt = Math.abs(game.screen2.top  - game.screen.top);
+  return dl > dt ? 'h' : 'v';
+}
+function _saveSlotCountFor(game){
+  var o = _saveDualOrient(game);
+  return o === 'v' ? 8 : o === 'h' ? 6 : 12;
+}
+function _saveGridColsFor(game){
+  return _saveDualOrient(game) === 'h' ? 2 : 4;
+}
+// Inter-screen gaps, shared between the composited canvas (_saveRenderThumb)
+// and the CSS box aspect (_saveThumbAspect) so they stay identical.
+const _SAVE_GAP_V = 0.05, _SAVE_GAP_H = 0.07;
+// The DISPLAYED pixel aspect (w/h) of a live LCD screen -- the SAME thing the
+// play window shows: the Background.png is stretched to its glass rect, which
+// differs from the image's own natural aspect, so we read the on-screen box
+// (getBoundingClientRect) to reproduce the exact in-game proportions rather
+// than the raw file aspect. Falls back to the image's natural aspect (then
+// 4:3) when the element isn't laid out yet.
+function _saveScreenAspect(id){
+  var e = document.getElementById(id);
+  var r = e && e.getBoundingClientRect();
+  if (r && r.width > 2 && r.height > 2) return r.width / r.height;
+  var aw = (e && e.naturalWidth) || 4, ah = (e && e.naturalHeight) || 3;
+  return aw / ah;
+}
+// Composited thumbnail aspect (width / height). CRITICAL: this must equal the
+// real _saveRenderThumb canvas aspect exactly, or `background-size:cover` on
+// .save-thumb crops/squishes the image. Both are built from each screen's
+// live DISPLAYED aspect (via _saveScreenAspect) plus the same gap, so a screen
+// in the thumbnail has the identical proportions it shows in the play window.
+// null for single-screen (keeps the fixed-height box, unchanged).
+function _saveThumbAspect(game){
+  var o = _saveDualOrient(game);
+  if (!o) return null;
+  var a1 = _saveScreenAspect('play-lcd-bg');    // displayed w/h of screen 1
+  var a2 = _saveScreenAspect('play-lcd-bg-2');   // displayed w/h of screen 2
+  if (o === 'v'){
+    // Screens stacked, each drawn at width 1; heights are 1/a each.
+    return 1 / (1 / a1 + _SAVE_GAP_V + 1 / a2);
+  }
+  // Side by side, each drawn at width 1; height = the taller of the two.
+  return (1 + _SAVE_GAP_H + 1) / Math.max(1 / a1, 1 / a2);
+}
 // True when a keystroke is destined for an editable field (the comment box) --
 // game input must yield to it. Used by the play modal's keydown/keyup handlers.
 function _gnwIsTypingTarget(t){
@@ -7521,23 +7600,29 @@ function _saveRelTime(ts){
   return Math.round(h / 24) + 'd ago';
 }
 
-// Rasterise the live LCD — Background.png with the current segment SVG on top,
-// composited exactly as the screen shows them (multiply blend, or plain paint
-// over black for inverted panels) — to a small PNG data URL: a frozen snapshot
-// of this instant. Async (the cloned SVG loads as an image); calls cb(url|null).
-function _saveRenderThumb(cb){
+// Rasterise ONE screen (its Background.png + segment SVG, composited with the
+// same multiply-blend / inverted handling the live screen uses) to an offscreen
+// canvas W px wide, its height following the background's own aspect. Rendered
+// at ~2x the on-screen slot size (see the _SAVE_RASTER_* widths) so the 2-col
+// horizontal thumbs aren't upscaled to blur. Async (the cloned SVG loads as an
+// Image); calls cb(canvas) -- or cb(null) if there's no SVG yet, or the
+// bg-only canvas if the SVG fails to load.
+function _saveRasterScreen(bg, cont, inverted, W, cb){
   try {
-    var bg   = document.getElementById('play-lcd-bg');
-    var cont = document.getElementById('play-svg-container');
-    var svg  = cont && cont.querySelector('svg');
-    var game = _emu && _emu.game;
+    var svg = cont && cont.querySelector('svg');
     if (!svg) { cb(null); return; }
-    var aw = (bg && bg.naturalWidth)  || 4, ah = (bg && bg.naturalHeight) || 3;
-    var W = 220, H = Math.round(W * ah / aw);
+    // Height from the screen's live DISPLAYED aspect (the stretched glass rect),
+    // so the rasterised screen matches the play window exactly -- not the raw
+    // Background.png file aspect. Both bg AND svg are then drawn to that same
+    // WxH, reproducing the live stretch the play modal applies to both layers.
+    var r = bg && bg.getBoundingClientRect();
+    var aspect = (r && r.width > 2 && r.height > 2)
+      ? (r.width / r.height)
+      : (((bg && bg.naturalWidth) || 4) / ((bg && bg.naturalHeight) || 3));
+    var H = Math.max(1, Math.round(W / aspect));
     var cv = document.createElement('canvas'); cv.width = W; cv.height = H;
     var ctx = cv.getContext('2d');
-    var inverted = !!(game && game.lcdInverted);
-    var finish = function(){ try { cb(cv.toDataURL('image/jpeg', 0.72)); } catch (e) { cb(null); } };
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
     if (inverted) { ctx.fillStyle = '#0a0a0a'; ctx.fillRect(0, 0, W, H); }
     else if (bg && bg.complete && bg.naturalWidth) { try { ctx.drawImage(bg, 0, 0, W, H); } catch (e) {} }
     var clone = svg.cloneNode(true);
@@ -7548,10 +7633,78 @@ function _saveRenderThumb(cb){
       ctx.globalCompositeOperation = inverted ? 'source-over' : 'multiply';
       try { ctx.drawImage(img, 0, 0, W, H); } catch (e) {}
       ctx.globalCompositeOperation = 'source-over';
-      finish();
+      cb(cv);
     };
-    img.onerror = finish;
+    img.onerror = function(){ cb(cv); };   // still return the bg-only canvas
     img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(xml);
+  } catch (e) { cb(null); }
+}
+
+// Rasterise the live LCD to a small JPEG data URL: a frozen snapshot of this
+// instant. Single-screen titles capture the one screen exactly as before;
+// Multi Screen (dual-LCD) titles capture BOTH screens, composited into one
+// canvas -- stacked (vertical) or side by side (horizontal), each keeping its
+// own multiply/inverted handling. Async; calls cb(url|null).
+// Per-screen raster widths: ~2x the displayed slot so nothing is upscaled to
+// blur. Single is ~1 col wide (~207px displayed), vertical dual each fills a
+// column, horizontal dual each is ~half a wide 2-col slot (~223px displayed).
+const _SAVE_RASTER_SINGLE = 380, _SAVE_RASTER_V = 400, _SAVE_RASTER_H = 340;
+// JPEG quality: the LCD art is a photo, so JPEG beats PNG on size; 0.9 keeps it
+// crisp with no visible artifacts while staying small enough for localStorage.
+const _SAVE_JPEG_Q = 0.9;
+function _saveRenderThumb(cb){
+  try {
+    var game = _emu && _emu.game;
+    var inverted = !!(game && game.lcdInverted);
+    var bg   = document.getElementById('play-lcd-bg');
+    var cont = document.getElementById('play-svg-container');
+    var orient = _saveDualOrient(game);
+
+    if (!orient) {                                       // single screen -- unchanged shape
+      _saveRasterScreen(bg, cont, inverted, _SAVE_RASTER_SINGLE, function(cv){
+        if (!cv) { cb(null); return; }
+        try { cb(cv.toDataURL('image/jpeg', _SAVE_JPEG_Q)); } catch (e) { cb(null); }
+      });
+      return;
+    }
+
+    var bg2   = document.getElementById('play-lcd-bg-2');
+    var cont2 = document.getElementById('play-svg-container-2');
+    // Vertical: both full width, stacked. Horizontal: each ~half width, side by
+    // side. The gap fractions (_SAVE_GAP_V/H) match _saveThumbAspect exactly so
+    // the CSS box aspect equals this canvas aspect (no crop under cover).
+    // Composite once both screens' canvases are ready.
+    var wEach = orient === 'v' ? _SAVE_RASTER_V : _SAVE_RASTER_H;
+    _saveRasterScreen(bg, cont, inverted, wEach, function(c1){
+      _saveRasterScreen(bg2, cont2, inverted, wEach, function(c2){
+        if (!c1 && !c2) { cb(null); return; }
+        var out = document.createElement('canvas'), ctx;
+        if (orient === 'v') {
+          var W  = Math.max(c1 ? c1.width : 0, c2 ? c2.width : 0);
+          var h1 = c1 ? c1.height : 0, h2 = c2 ? c2.height : 0;
+          var gapV = Math.round(W * _SAVE_GAP_V);
+          out.width = W; out.height = h1 + gapV + h2;
+          ctx = out.getContext('2d');
+          ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+          ctx.fillStyle = inverted ? '#0a0a0a' : '#aeb7a2';
+          ctx.fillRect(0, 0, out.width, out.height);
+          if (c1) ctx.drawImage(c1, 0, 0);
+          if (c2) ctx.drawImage(c2, 0, h1 + gapV);
+        } else {
+          var w1 = c1 ? c1.width : 0, w2 = c2 ? c2.width : 0;
+          var H  = Math.max(c1 ? c1.height : 0, c2 ? c2.height : 0);
+          var gapH = Math.round(Math.max(w1, w2) * _SAVE_GAP_H);
+          out.width = w1 + gapH + w2; out.height = H;
+          ctx = out.getContext('2d');
+          ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+          ctx.fillStyle = inverted ? '#0a0a0a' : '#aeb7a2';
+          ctx.fillRect(0, 0, out.width, out.height);
+          if (c1) ctx.drawImage(c1, 0, Math.round((H - c1.height) / 2));
+          if (c2) ctx.drawImage(c2, w1 + gapH, Math.round((H - c2.height) / 2));
+        }
+        try { cb(out.toDataURL('image/jpeg', _SAVE_JPEG_Q)); } catch (e) { cb(null); }
+      });
+    });
   } catch (e) { cb(null); }
 }
 
@@ -7595,7 +7748,8 @@ function _saveEnsureDom(){
     '#play-head-actions.saves-open #play-saves-headbar{display:flex!important}' +
     '#play-emu-root{position:relative}' +
     '#play-save-panel{position:absolute;inset:0;z-index:80;display:none;flex-direction:column;' +
-      'background:linear-gradient(180deg,var(--bg-1),var(--bg-0));border-radius:14px;padding:16px 18px;overflow:auto}' +
+      'background:linear-gradient(180deg,var(--bg-1),var(--bg-0));border-radius:14px;padding:16px 18px;overflow:auto;scrollbar-width:none}' +
+    '#play-save-panel::-webkit-scrollbar{display:none}' +
     '#play-save-panel.open{display:flex}' +
     '.save-back{font:inherit;font-size:12px;font-weight:700;color:var(--text);background:transparent;' +
       'border:1px solid var(--line);border-radius:9px;padding:6px 11px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}' +
@@ -7610,7 +7764,16 @@ function _saveEnsureDom(){
     // percentage-padding aspect box it triggers a pathological intrinsic pass
     // that inflates empty rows; default auto rows size to the real content.
     '.save-grid{display:grid;width:100%;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px;align-items:start;justify-items:stretch}' +
+    // Horizontal (side-by-side) Multi Screen titles use a 2-column grid so each
+    // wider both-screens thumb has room. Two-class specificity so it also wins
+    // over the narrow-screen media query below.
+    '.save-grid.cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}' +
     '@media(max-width:640px){.save-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}' +
+    // Dual-screen thumbs drop the fixed height and take their shape from the
+    // composited canvas aspect (set as --thumb-ar on the grid) so BOTH screens
+    // are fully visible. Column width is definite (minmax(0,1fr)), so the
+    // aspect-ratio height is definite too -- no intrinsic-sizing inflation.
+    '.save-grid.dual .save-thumb{height:auto;aspect-ratio:var(--thumb-ar,1.4)}' +
     // Flex column so the thumb + meta always stretch to the full slot width (no
     // shrink-wrapping to the meta text), and the slot is exactly as tall as its
     // content -- every slot the same minimal height.
@@ -7646,6 +7809,10 @@ function _saveEnsureDom(){
     '.save-acts .load:hover{background:rgba(155,225,93,.12)}' +
     '.save-acts .del{border-color:rgba(224,107,93,.4);color:#f0b7af}' +
     '.save-acts .del:hover{background:rgba(224,107,93,.12)}' +
+    // Light mode: the dark-mode light-green/red text is invisible on the light
+    // slot background -- use darker, higher-contrast ink for Load/Del there.
+    ':root[data-theme="light"] .save-acts .load{color:#2c6e17;border-color:rgba(90,150,45,.6)}' +
+    ':root[data-theme="light"] .save-acts .del{color:#b23a2a;border-color:rgba(190,70,55,.55)}' +
     '.save-comment{width:100%;background:var(--bg-0);border:1px solid var(--line);border-radius:6px;color:var(--text);' +
       'font:inherit;font-size:12px;padding:7px 8px;resize:none;min-height:42px}' +
     '.save-comment::placeholder{color:#57616f}' +
@@ -7678,9 +7845,19 @@ function _saveRenderGrid(){
   var grid = document.querySelector('#play-save-panel .save-grid');
   if (!grid) return;
   var key = _emu.gameKey;
+  var game = _emu.game;
   var slots = _saveLoadSlots(key);
+  // Reflow the grid for this device: single 12/4-col, vertical dual 8/4-col,
+  // horizontal dual 6/2-col. Storage still holds all 12 (see _saveLoadSlots);
+  // we only RENDER the device-appropriate count so no stored save is lost.
+  var n = _saveSlotCountFor(game);
+  var orient = _saveDualOrient(game);
+  grid.classList.toggle('cols-2', _saveGridColsFor(game) === 2);
+  grid.classList.toggle('dual', !!orient);
+  if (orient) grid.style.setProperty('--thumb-ar', _saveThumbAspect(game));
+  else grid.style.removeProperty('--thumb-ar');
   grid.innerHTML = '';
-  slots.forEach(function(s, i){
+  slots.slice(0, n).forEach(function(s, i){
     var el = document.createElement('div');
     if (!s) {
       el.className = 'save-slot save-empty';   // NB: not "empty" -- collides with the site-wide .empty{padding:60px} rule
@@ -7711,9 +7888,9 @@ function _saveRenderGrid(){
     }
     grid.appendChild(el);
   });
-  var used = slots.filter(Boolean).length;
+  var used = slots.slice(0, n).filter(Boolean).length;
   var cnt = document.getElementById('play-saves-count');
-  if (cnt) cnt.textContent = used + ' / ' + _SAVE_SLOTS + ' used';
+  if (cnt) cnt.textContent = used + ' / ' + n + ' used';
   window.gnwUpdateSaveButtons();
 }
 
@@ -7758,7 +7935,8 @@ function _saveShowToast(i, thumb){
 // ── public API (called from index.html's header buttons + modal open/close) ──
 window.gnwSaveSlot = function(){
   if (!_emu) return;
-  var free = _saveLoadSlots(_emu.gameKey).indexOf(null);
+  // Only the device-appropriate slots are visible, so fill within that range.
+  var free = _saveLoadSlots(_emu.gameKey).slice(0, _saveSlotCountFor(_emu.game)).indexOf(null);
   if (free < 0) return;                                 // full — button is disabled anyway
   _saveToSlot(free);
 };
@@ -7779,10 +7957,10 @@ window.gnwCloseSaveGrid = function(silent){
 };
 window.gnwUpdateSaveButtons = function(){
   var save = document.getElementById('play-save-btn'); if (!save) return;
-  var full = false;
-  if (_emu) full = _saveLoadSlots(_emu.gameKey).indexOf(null) < 0;
+  var full = false, n = _SAVE_SLOTS;
+  if (_emu) { n = _saveSlotCountFor(_emu.game); full = _saveLoadSlots(_emu.gameKey).slice(0, n).indexOf(null) < 0; }
   save.disabled = !_emu || full;
-  save.title = full ? 'All 12 slots full — delete one to save' : 'Save game to a slot';
+  save.title = full ? ('All ' + n + ' slots full — delete one to save') : 'Save game to a slot';
 };
 
 // ─── Ambient tile preview ───────────────────────────────────────────────────

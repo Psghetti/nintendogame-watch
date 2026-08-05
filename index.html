@@ -139,14 +139,14 @@
       linear-gradient(90deg, rgba(30,45,70,.04) 1px, transparent 1px);
   }
   :root[data-theme="light"] .overlay { background: rgba(28, 36, 50, .38); }
-  :root[data-theme="light"] .device-card .img { background: linear-gradient(#ffffff, #eef0f4); }
+  :root[data-theme="light"] .device-card:not([data-series="special"]) .img { background: linear-gradient(#ffffff, #eef0f4); }
   /* NOT crystal -- its LCD stays genuinely transparent (see-through) in both
      themes; only the opaque-screen units get a light backing here. Also NOT the
      non-rectangular series (Micro Vs./Panorama/Table Top/Multi Screen): their
      Unit.png is a silhouette on a transparent field, so a box backing shows
      through the empty corners -- see the .tile-emu / .play-device transparent
      overrides below. */
-  :root[data-theme="light"] .device-card:not([data-series="crystal"]):not([data-series="microvs"]):not([data-series="panorama"]):not([data-series="tabletop"]):not([data-series="multiscreen"]) .img .tile-emu,
+  :root[data-theme="light"] .device-card:not([data-series="crystal"]):not([data-series="microvs"]):not([data-series="panorama"]):not([data-series="tabletop"]):not([data-series="multiscreen"]):not([data-series="special"]) .img .tile-emu,
   :root[data-theme="light"] .play-device:not([data-series="microvs"]):not([data-series="panorama"]):not([data-series="tabletop"]):not([data-series="multiscreen"]):not([data-series="special"]) { background: #dbe0e8; }
   :root[data-theme="light"] header { background: rgba(248,249,251,.82); }
   :root[data-theme="light"] .collection-toolbar { background: var(--bg-2); }
@@ -2865,7 +2865,9 @@
     position: absolute; top: 4px; left: 6px;
     font: bold 10px/1.4 monospace; color: #000; background: rgba(255,255,255,0.75); padding: 1px 3px;
     pointer-events: none; white-space: pre;
+    display: none;   /* hidden in normal play; shown only in Developer Mode (rule below) */
   }
+  .play-devmode #play-dbg { display: block; }
 
   /* Developer Mode: strips the device skin down to just the LCD (real
      keyboard input still works — the hotspots/overlay art are purely
@@ -5352,7 +5354,7 @@
     <div class="modal-head">
       <div>
         <div class="modal-sub">Settings</div>
-        <div class="modal-title">Version 1.1.0</div>
+        <div class="modal-title">Version 1.2.0</div>
       </div>
       <button class="modal-close" onclick="closeOverlay('vault-overlay')" aria-label="Close">×</button>
     </div>
@@ -11164,6 +11166,14 @@ const DEVICE_INFO_TWINS = {
     verified: false,
     battery: TABLETOP_BATTERY,
   },
+  // Ball reissue (RGW-001, 2010 Club Nintendo). Its own firmware was never
+  // dumped, so verified:false -- runs AC-01's ROM as a faithful stand-in.
+  'reissue-ball': {
+    twin: 'silver-ball',
+    twinName: 'Ball',
+    models: ['RGW-001', 'AC-01'],
+    verified: false,
+  },
 };
 
 for (const [id, t] of Object.entries(DEVICE_INFO_TWINS)) {
@@ -11502,6 +11512,7 @@ const SOURCE_CODE_LANGS = [
 // doesn't expose any ROM content.
 const SOURCE_ROM_HASHES = [
   { key: 'ball',      title: 'Ball',                   subtitle: 'AC-01 · 1980', cpu: 'sm5a',  bytes: 2048, sha256: '1afcfb064dc657da61399420eff419ddb1b1f9004797c3c0489d257bfb23509a' },
+  { key: 'ballreissue', title: 'Ball (reissue)',       subtitle: 'RGW-001 · 2010', cpu: 'sm5a',  bytes: 2048, sha256: '1afcfb064dc657da61399420eff419ddb1b1f9004797c3c0489d257bfb23509a' },
   // bfight/BF-803 and bfightn/BF-107 are the same dump -- the Crystal Screen
   // original and its New Wide Screen re-release ship byte-identical firmware
   // (see DEVICE_INFO_TWINS / GAMES_HW_TWINS). Both are listed on purpose
@@ -12942,6 +12953,7 @@ const MANUAL_BOOKLETS = {
 const GNW_EMULATED_GAMES = {
   'silver-vermin':  { key: 'vermin',  folder: 'artwork/gnw_vermin' },
   'silver-ball':    { key: 'ball',    folder: 'artwork/gnw_ball', hideLines: true },
+  'reissue-ball':   { key: 'ballreissue', folder: 'artwork/gnw_ball', hideLines: true },
   'silver-flagman': { key: 'flagman', folder: 'artwork/gnw_flagman' },
   'silver-fire':    { key: 'fire',    folder: 'artwork/gnw_fires' },
   'silver-judge':   { key: 'judge',   folder: 'artwork/gnw_judge' },
@@ -20455,7 +20467,7 @@ function loadImageArchiveViaScript() {
      to Cache-Control's max-age after a deploy. -->
 <script src="firmware/content_pack.js?v=20260730-pack1"></script>
 <script src="firmware/cloud_storage.js?v=20260802-cloudoff"></script>
-<script src="gnw.js?v=20260730-pack5"></script>
+<script src="gnw.js?v=20260805-dualsave3"></script>
 <script>
 /* Settings → Content: open/clear a content pack (.zip). Talks to window.__GNW_PACK
    (firmware/content_pack.js); the emulators pick it up on the next reload. */
