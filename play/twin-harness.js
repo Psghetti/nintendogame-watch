@@ -281,14 +281,15 @@ registerProcessor('twin-sink', TwinSink);
   // (audio is armed by the Tap-to-play gesture in start(), below — not on any interaction)
 
   // Mute toggle — ramps the gain so muting/unmuting doesn't click.
+  // Legacy legend Mute button (may be absent — the bottom .pcontrols legend was
+  // removed now that the pill has a Mute button; guard every reference to it).
   var muteBtn = document.getElementById('mute');
   function setMuted(v){
     muted = v;
     if (audioGain) audioGain.gain.setTargetAtTime(muted ? 0 : 1, audioCtx.currentTime, 0.008);
-    muteBtn.textContent = muted ? '🔇 Muted' : '🔊 Sound on';
-    muteBtn.setAttribute('aria-pressed', muted ? 'true' : 'false');
+    if (muteBtn){ muteBtn.textContent = muted ? '🔇 Muted' : '🔊 Sound on'; muteBtn.setAttribute('aria-pressed', muted ? 'true' : 'false'); }
   }
-  muteBtn.addEventListener('click', function(){ initAudio(); setMuted(!muted); });
+  if (muteBtn) muteBtn.addEventListener('click', function(){ initAudio(); setMuted(!muted); });
 
   // ---- input: forward button edges to the worker --------------------------
   var KEYMAP = {
@@ -297,8 +298,8 @@ registerProcessor('twin-sink', TwinSink);
     'KeyQ':'b', 'KeyE':'a', 'KeyP':'power',
     // Select/Start exist on Zelda only (its games are NES/GB titles); Mario's
     // shell has no such buttons and its firmware ignores these pins, so the
-    // shared mapping is inert there.
-    'KeyC':'select', 'KeyV':'start'
+    // shared mapping is inert there. Bound to [ and ] (adjacent, near A/B).
+    'BracketLeft':'select', 'BracketRight':'start'
   };
   function setBtn(name, down){
     if (!worker) return;
@@ -339,6 +340,10 @@ registerProcessor('twin-sink', TwinSink);
   // ---- messages from the worker: audio buffers + status line ---------------
   function onWorkerMsg(e){
     var d = e.data; if (!d) return;
+    if (d.saveResult) { _twinOnSaveResult(d.saveResult); return; }
+    if (d.loadResult) { _twinOnLoadResult(d.loadResult); return; }
+    if (d.saveError)  { _twinToast('Save failed: ' + d.saveError); return; }
+    if (d.loadError)  { _twinToast('Load failed: ' + d.loadError); return; }
     if (d.ready) { revealScreen(); return; }   // clock/game built (cycle target) -> reveal
     if (d.needFw) { try { parent.postMessage({ tftNeedFw: d.needFw }, '*'); } catch (e2) {} return; }  // code-only build: ask the page for a content-pack firmware
     if (d.audio) {
@@ -360,7 +365,7 @@ registerProcessor('twin-sink', TwinSink);
     // worker posts {ready} -- i.e. once the clock is built (see onWorkerMsg).
     if (tap) { tap.classList.add('starting'); tap.disabled = true; }   // plain black cover (contents hidden via CSS)
     var fw = window.TWIN_FW || 'retail';               // 'retail' (default) | 'custom'
-    worker = new Worker('../twin-worker.js?v=20260730-pack1&unit=' + (window.TWIN_UNIT || 'mario') + '&fw=' + fw);
+    worker = new Worker('../twin-worker.js?v=20260811-keys1&unit=' + (window.TWIN_UNIT || 'mario') + '&fw=' + fw);
     worker.onmessage = onWorkerMsg;
     var off = canvas.transferControlToOffscreen();
     worker.postMessage({ canvas: off }, [off]);
@@ -402,4 +407,325 @@ registerProcessor('twin-sink', TwinSink);
   tap.innerHTML = '<span class="tap-icon"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="9" width="9.5" height="6" rx="2.4"/><rect x="4.5" y="6.8" width="3.5" height="2.3" rx="0.8"/><path d="M1.5 11.3h9.5"/><rect x="13" y="9" width="9.5" height="6" rx="2.4"/><rect x="16" y="14.9" width="3.5" height="2.3" rx="0.8"/><path d="M13 12.7h9.5"/></svg></span><span>Insert batteries to start</span>';
   tap.addEventListener('click', start);
   document.querySelector('.device').appendChild(tap);
+
+  // ==========================================================================
+  //  Pill toolbar (Saves · Pause · Mute) + Pause + IndexedDB save-states.
+  //  Self-contained in this iframe, matching the other devices' overlay pill
+  //  (visual target: #play-toolbar-pill in the site; template: Tetris Jr's
+  //  #tj-toolbar). Rewind + Keys are intentionally omitted for the twin.
+  // ==========================================================================
+  var UNIT = window.TWIN_UNIT || 'mario';
+  var SLOTS = 4;
+  var _PAUSE_ICO = '<svg viewBox="0 0 24 24" style="fill:none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M8 5v14M16 5v14"/></svg>';
+  var _PLAY_ICO  = '<svg viewBox="0 0 24 24"><path d="M7 5l12 7-12 7z"/></svg>';
+
+  var _pillStyle = document.createElement('style');
+  _pillStyle.textContent =
+    '#mute{display:none!important}'   // old legend Mute folded into the pill
+    + '#twin-toolbar{position:fixed;top:8px;left:50%;transform:translateX(-50%);display:flex;justify-content:center;'
+      + 'z-index:60;box-sizing:border-box;max-width:calc(100vw - 16px);overflow:hidden;'
+      + 'background:rgba(16,18,22,.72);border:1px solid #2b3342;border-radius:999px;padding:4px 6px;'
+      + '-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);transition:opacity .2s}'
+    + '.twin-tb-controls{display:flex;gap:6px}'
+    + '.twin-tb-back{display:none!important}'
+    + '#twin-toolbar.sub-open .twin-tb-controls{display:none}'
+    + '#twin-toolbar.sub-open .twin-tb-back{display:inline-flex!important}'
+    + '.twin-tbtn{display:inline-flex;align-items:center;gap:5px;margin:0;white-space:nowrap;background:transparent;'
+      + 'border:0;border-radius:999px;cursor:pointer;color:#cdd3e0;font:inherit;font-size:12px;line-height:1;'
+      + 'padding:6px 11px;-webkit-tap-highlight-color:transparent}'
+    + '.twin-tbtn:hover{background:rgba(205,214,230,.12)}'
+    + '.twin-tbtn:active,.twin-tbtn.active{background:rgba(120,200,255,.20);color:#eaf3ff}'
+    + '.twin-tbtn svg{width:14px;height:14px;fill:currentColor;display:block}'
+    + '.twin-tbtn[disabled]{opacity:.4;cursor:default}'
+    + '#twin-mute-ico{font-size:13px;line-height:1}'
+    + '#twin-paused{position:fixed;inset:0;display:none;align-items:center;justify-content:center;pointer-events:none;z-index:35}'
+    + '#twin-paused .badge{background:rgba(16,18,22,.78);border:1px solid #3a4454;border-radius:10px;color:#e7eaf3;'
+      + 'font-size:15px;letter-spacing:.18em;padding:10px 20px;box-shadow:0 8px 26px rgba(0,0,0,.5)}'
+    + '#twin-saves{position:fixed;inset:0;display:none;flex-direction:column;z-index:50;background:linear-gradient(180deg,#11161f,#0a0e14);'
+      + 'padding:52px 14px 14px;box-sizing:border-box;overflow:auto}'
+    + '#twin-saves .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;align-items:start;max-width:760px;margin:0 auto;width:100%}'
+    + '@media (max-width:560px){#twin-saves .grid{grid-template-columns:repeat(2,1fr)}}'
+    + '.twin-slot{position:relative;border:1px solid #2b3342;border-radius:10px;background:#141821;cursor:pointer;'
+      + 'display:flex;flex-direction:column;overflow:hidden;align-self:start;transition:border-color .14s,box-shadow .14s}'
+    + '.twin-slot:hover{border-color:#4a5670}'
+    + '.twin-slot.expanded{border-color:rgba(120,200,255,.55);box-shadow:0 10px 26px -14px rgba(0,0,0,.7)}'
+    + '.twin-slot .thumb{position:relative;width:100%;height:108px;flex:0 0 auto;background:#0b0e13;border-bottom:1px solid #2b3342;overflow:hidden}'
+    + '.twin-slot .thumb canvas{width:100%;height:100%;object-fit:contain;image-rendering:pixelated;display:block}'
+    + '.twin-slot .meta{display:flex;justify-content:space-between;align-items:center;gap:6px;padding:6px 8px;font-size:10.5px;color:#8b93a7}'
+    + '.twin-slot .num{font-family:ui-monospace,Consolas,monospace;font-weight:800;color:#5a6478}'
+    + '.twin-slot.empty{border-style:dashed;background:transparent}'
+    + '.twin-slot.empty .thumb{background:repeating-linear-gradient(135deg,rgba(255,255,255,.02) 0 10px,transparent 10px 20px)}'
+    + '.twin-slot .plus{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:32px;height:32px;'
+      + 'border:2px dashed #3a4454;border-radius:50%;color:#5a6478;display:flex;align-items:center;justify-content:center;font-size:19px;line-height:1}'
+    + '.twin-slot.empty:hover .plus{border-color:#6cc1ff;color:#6cc1ff}'
+    + '.twin-slot .detail{display:none;border-top:1px solid #2b3342}'
+    + '.twin-slot.expanded .detail{display:block}'
+    + '.twin-slot .pad{padding:9px;display:flex;flex-direction:column;gap:8px}'
+    + '.twin-slot .acts{display:flex;gap:7px}'
+    + '.twin-slot .acts button{flex:1;justify-content:center;font:inherit;font-size:11.5px;font-weight:700;padding:6px 8px;'
+      + 'border-radius:7px;border:1px solid #3a4454;background:#1a1f29;color:#e7eaf3;cursor:pointer;display:inline-flex;align-items:center;gap:4px}'
+    + '.twin-slot .acts .load{border-color:rgba(120,200,255,.5);color:#bfe2ff}'
+    + '.twin-slot .acts .load:hover{background:rgba(120,200,255,.12)}'
+    + '.twin-slot .acts .del{border-color:rgba(224,107,93,.4);color:#f0b7af}'
+    + '.twin-slot .acts .del:hover{background:rgba(224,107,93,.12)}'
+    + '#twin-toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(10px);z-index:70;'
+      + 'background:rgba(24,30,40,.96);border:1px solid #3a4454;border-radius:8px;color:#eaf0f8;font-size:12px;'
+      + 'padding:8px 16px;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none}'
+    + '#twin-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}'
+    // Controls (Keys) screen — an EMPTY flex-row panel the SHARED keys engine
+    // (window.KeysDiagram) renders into (diagram + extras column), exactly like the
+    // main site's #play-keys-panel. The engine's CSS uses --muted/--text/--accent/
+    // --line/--bg-* theme vars, so define them here for the twin's dark theme.
+    + '#twin-keys{position:fixed;inset:0;display:none;flex-direction:row;gap:16px;z-index:50;'
+      // The EXACT classic #play-keys-panel background (gnw.js/_keysEnsureDom):
+      // a subtle top->bottom gradient --bg-1(#11161f) -> --bg-0(#0a0e14). Matches
+      // a classic device's Controls panel perfectly (a flat fill left the twin's
+      // bottom lighter). The earlier top-center RADIAL gradient was the real bug.
+      + 'background:linear-gradient(180deg,#11161f,#0a0e14);'
+      + 'padding:54px 18px 18px;box-sizing:border-box;overflow:hidden;'
+      // Theme vars matched EXACTLY to the main site (index.html :root, line ~172 +
+      // the default --accent-d) so the borders/text/lit-accent read identical to a
+      // classic device's Controls screen.
+      + '--muted:#8a94a6;--text:#e7ecf2;--accent:#9be15d;--line:#2a3242;--bg-0:#0a0e14;--bg-1:#11161f}';
+  document.head.appendChild(_pillStyle);
+
+  var _tb = document.createElement('div');
+  _tb.id = 'twin-toolbar'; _tb.setAttribute('role','toolbar'); _tb.setAttribute('aria-label','Play controls');
+  _tb.innerHTML =
+    '<div class="twin-tb-controls">'
+    + '<button class="twin-tbtn" id="twin-save" aria-label="Save states"><svg viewBox="0 0 24 24" style="fill:none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v5"/></svg>Saves</button>'
+    + '<button class="twin-tbtn" id="twin-pause" aria-label="Pause" aria-pressed="false"><span id="twin-pause-ico">'+_PAUSE_ICO+'</span><span id="twin-pause-lbl">Pause</span></button>'
+    + '<button class="twin-tbtn" id="twin-keys-btn" aria-label="Controls"><svg viewBox="0 0 24 24" style="fill:none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="8.5" y="2" width="7" height="7" rx="1.8"/><rect x="1" y="10.5" width="7" height="7" rx="1.8"/><rect x="8.5" y="10.5" width="7" height="7" rx="1.8"/><rect x="16" y="10.5" width="7" height="7" rx="1.8"/></svg>Keys</button>'
+    + '<button class="twin-tbtn" id="twin-mute" aria-label="Mute" aria-pressed="false"><span id="twin-mute-ico">🔊</span><span id="twin-mute-lbl">Sound on</span></button>'
+    + '</div>'
+    + '<button class="twin-tbtn twin-tb-back" id="twin-back" aria-label="Back to game"><svg viewBox="0 0 24 24" style="fill:none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>Back</button>';
+  document.body.appendChild(_tb);
+
+  var _paused = document.createElement('div');
+  _paused.id = 'twin-paused'; _paused.innerHTML = '<div class="badge">PAUSED</div>';
+  document.body.appendChild(_paused);
+
+  var _saves = document.createElement('div');
+  _saves.id = 'twin-saves'; _saves.setAttribute('aria-hidden','true');
+  _saves.innerHTML = '<div class="grid" id="twin-saves-grid"></div>';
+  document.body.appendChild(_saves);
+
+  var _keys = document.createElement('div');   // Controls screen — filled by KeysDiagram.render
+  _keys.id = 'twin-keys'; _keys.setAttribute('aria-hidden','true');
+  document.body.appendChild(_keys);
+
+  var _toast = document.createElement('div');
+  _toast.id = 'twin-toast';
+  document.body.appendChild(_toast);
+
+  var _byId = function(id){ return document.getElementById(id); };
+  var _toastTimer = null;
+  function _twinToast(msg){
+    _toast.textContent = msg; _toast.classList.add('show');
+    if (_toastTimer) clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(function(){ _toast.classList.remove('show'); }, 1900);
+  }
+
+  // ---- Pause -------------------------------------------------------------
+  // Two INDEPENDENT freeze sources, mirroring the classic _saveFreeze/_saveThaw
+  // guard in gnw.js: `userPause` is the explicit Pause pill; `savesFreeze` is the
+  // transparent freeze while the Saves overlay is open. The worker runs only when
+  // NEITHER is active. `savesFreeze` never touches the Pause pill visuals/badge.
+  var userPause = false, savesFreeze = false, savesOpen = false, _workerPaused = false;
+  var keysFreeze = false, keysOpen = false;
+  function _applyPause(){
+    var want = userPause || savesFreeze || keysFreeze;   // run only when NEITHER overlay-freeze NOR explicit pause is active
+    if (want === _workerPaused) return;
+    _workerPaused = want;
+    if (worker) worker.postMessage(want ? { pause:1 } : { resume:1 });
+    if (audioCtx){ try { want ? audioCtx.suspend() : (muted ? 0 : audioCtx.resume()); } catch(e){} }
+  }
+  function setUserPause(on){
+    if (!worker) return;
+    userPause = on;
+    _byId('twin-pause-ico').innerHTML = on ? _PLAY_ICO : _PAUSE_ICO;
+    _byId('twin-pause-lbl').textContent = on ? 'Resume' : 'Pause';
+    _byId('twin-pause').classList.toggle('active', on);
+    _byId('twin-pause').setAttribute('aria-pressed', on ? 'true' : 'false');
+    _paused.style.display = on ? 'flex' : 'none';     // badge reflects the EXPLICIT pause only
+    _applyPause();
+  }
+  _byId('twin-pause').addEventListener('click', function(){ if (!worker){ _twinToast('Insert batteries first'); return; } setUserPause(!userPause); });
+
+  // ---- Mute (folded into the pill; reuses the existing setMuted) ---------
+  function _twinSyncMute(){
+    _byId('twin-mute-ico').textContent = muted ? '🔇' : '🔊';
+    _byId('twin-mute-lbl').textContent = muted ? 'Muted' : 'Sound on';
+    _byId('twin-mute').setAttribute('aria-pressed', muted ? 'true' : 'false');
+  }
+  _byId('twin-mute').addEventListener('click', function(){ initAudio(); setMuted(!muted); _twinSyncMute(); });
+
+  // ---- Saves overlay (morphs the pill into "Back") -----------------------
+  // Opening the grid TRANSPARENTLY freezes the machine (so the state the user is
+  // saving/loading is not a moving target); closing thaws it — unless the user
+  // also hit the explicit Pause, in which case _applyPause keeps it frozen.
+  function _setSavesOpen(open){
+    if (open && keysOpen) _setKeysOpen(false);          // overlays are mutually exclusive
+    savesOpen = open;
+    _saves.style.display = open ? 'flex' : 'none';
+    _saves.setAttribute('aria-hidden', open ? 'false' : 'true');
+    _tb.classList.toggle('sub-open', open || keysOpen);
+    savesFreeze = open;
+    _applyPause();
+    if (open) _renderSaves();
+  }
+  _byId('twin-save').addEventListener('click', function(){ if (!worker){ _twinToast('Insert batteries first'); return; } _setSavesOpen(true); });
+
+  // ---- Keys / Controls overlay (shared KeysDiagram engine) ----------------
+  // The twin's REAL control set + key map, sourced verbatim from this harness's
+  // own KEYMAP and the .pcontrols legend in mario/zelda index.html:
+  //   Game=1  Time=2  Pause=3  Move=arrows  B=Q  A=E  Power=P (keyboard-only)
+  //   Zelda additionally: Select=C  Start=V
+  // Rendered through the SAME window.KeysDiagram module as every other device.
+  // Hotspot geometry mirrors the real artwork button positions (D-pad bottom-left
+  // as a btn1..4 cross the engine folds into one D-pad; A/B round buttons bottom-
+  // right; Game/Time/Pause operational pills top-right column).
+  // The def is a compact SCHEMATIC (not overlaid on the artwork): the `screen`
+  // rect covers the twin's LCD band, which KeysDiagram._keysLayout uses to
+  // COLLAPSE the dead space between clusters (same mechanism DK-52 et al. use),
+  // so the D-pad, A/B and the Game/Time/Pause pills pack tight with no big empty
+  // middle. Buttons are sized larger for the DK-52-like look.
+  var TWIN_KEYS_GAME = {
+    screen: { left:29.1, top:23.25, width:41.9, height:54.28 },   // real LCD rect -> squeezed out of the diagram
+    hotspots: {
+      btn2: { left:9,  top:58, width:9,  height:9 },    // up      \
+      btn4: { left:9,  top:76, width:9,  height:9 },    // down     > btn1..4 form a cross -> ONE D-pad
+      btn3: { left:2,  top:67, width:9,  height:9 },    // left     |
+      btn1: { left:16, top:67, width:9,  height:9 },    // right   /
+      hit:  { left:74, top:63, width:12, height:12 },   // B (left round button)
+      jump: { left:87, top:63, width:12, height:12 },   // A (right round button)
+      gameA:{ left:78, top:8,  width:12, height:7 },    // Game  \
+      time: { left:78, top:20, width:12, height:7 },    // Time   > operational pill column
+      gameB:{ left:78, top:32, width:12, height:7 }     // Pause /
+    }
+  };
+  var TWIN_KEYS_META = {
+    gameA: { label:'Game',  keys:['1'] },
+    time:  { label:'Time',  keys:['2'] },
+    gameB: { label:'Pause', keys:['3'] },
+    hit:   { label:'B',     keys:['Q'] },
+    jump:  { label:'A',     keys:['E'] }
+  };
+  // Zelda ALSO has Select (C) and Start (V) in its KEYMAP (Mario's shell has
+  // neither) — add them as real controls, not just extras. KeysDiagram only
+  // admits buttons whose names exist in its BUTTON_META, so Select/Start reuse
+  // the engine's `open`/`fire` action-button slots, placed under A/B so the
+  // collapsed layout stays tight.
+  if (UNIT === 'zelda') {
+    // Select sits directly ABOVE B (hit), Start directly ABOVE A (jump): same
+    // horizontal centre and the SAME WIDTH as B/A (left:74/87 width:12), but a
+    // SHORTER height (~58%) so the engine's border-radius:9999px renders them as
+    // horizontal PILLS (like the Game/Time/Pause operational pills), not circles.
+    TWIN_KEYS_GAME.hotspots.open = { left:74, top:50, width:12, height:7 };   // Select — pill above B
+    TWIN_KEYS_GAME.hotspots.fire = { left:87, top:50, width:12, height:7 };   // Start  — pill above A
+    TWIN_KEYS_META.open = { label:'Select', keys:['['] };
+    TWIN_KEYS_META.fire = { label:'Start',  keys:[']'] };
+  }
+  var TWIN_KEYS_EXTRA = '<span><b>P</b> Power</span>';   // Power is keyboard-only on both units
+  function _setKeysOpen(open){
+    if (open && savesOpen) _setSavesOpen(false);        // overlays are mutually exclusive
+    keysOpen = open;
+    _keys.style.display = open ? 'flex' : 'none';
+    _keys.setAttribute('aria-hidden', open ? 'false' : 'true');
+    _tb.classList.toggle('sub-open', open || savesOpen);
+    keysFreeze = open;
+    _applyPause();
+    if (open && window.KeysDiagram){
+      window.KeysDiagram.render(_keys, { game:TWIN_KEYS_GAME, gameKey:UNIT, ar:1,
+        meta:TWIN_KEYS_META, override:{}, extra:TWIN_KEYS_EXTRA });   // no actionCircle: keep Select/Start as pills (wider than tall)
+      window.KeysDiagram.fit(_keys);
+      window.KeysDiagram.attachInput(_keys);
+    } else if (!open && window.KeysDiagram){
+      window.KeysDiagram.detachInput();
+    }
+  }
+  _byId('twin-keys-btn').addEventListener('click', function(){ if (!worker){ _twinToast('Insert batteries first'); return; } if (!window.KeysDiagram){ _twinToast('Controls unavailable'); return; } _setKeysOpen(true); });
+  window.addEventListener('resize', function(){ if (keysOpen && window.KeysDiagram) window.KeysDiagram.fit(_keys); });
+
+  // Toolbar Back / Escape — return from whichever overlay is open.
+  _byId('twin-back').addEventListener('click', function(){ if (savesOpen) _setSavesOpen(false); else if (keysOpen) _setKeysOpen(false); });
+  window.addEventListener('keydown', function(e){ if (e.code === 'Escape'){ if (savesOpen){ e.preventDefault(); _setSavesOpen(false); } else if (keysOpen){ e.preventDefault(); _setKeysOpen(false); } } });
+
+  // ---- IndexedDB: a save is ~2.5 MB, over localStorage quota --------------
+  var DB_NAME = 'twin-saves', STORE = 'saves', _db = null;
+  function idbOpen(){
+    return new Promise(function(res, rej){
+      if (_db) return res(_db);
+      var rq = indexedDB.open(DB_NAME, 1);
+      rq.onupgradeneeded = function(){ var db = rq.result; if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath:'id' }); };
+      rq.onsuccess = function(){ _db = rq.result; res(_db); };
+      rq.onerror = function(){ rej(rq.error); };
+    });
+  }
+  function _key(slot){ return UNIT + ':' + slot; }
+  function idbPut(rec){ return idbOpen().then(function(db){ return new Promise(function(res,rej){ var tx=db.transaction(STORE,'readwrite'); tx.objectStore(STORE).put(rec); tx.oncomplete=function(){res();}; tx.onerror=function(){rej(tx.error);}; }); }); }
+  function idbGet(slot){ return idbOpen().then(function(db){ return new Promise(function(res,rej){ var tx=db.transaction(STORE,'readonly'); var rq=tx.objectStore(STORE).get(_key(slot)); rq.onsuccess=function(){res(rq.result||null);}; rq.onerror=function(){rej(rq.error);}; }); }); }
+  function idbDel(slot){ return idbOpen().then(function(db){ return new Promise(function(res,rej){ var tx=db.transaction(STORE,'readwrite'); tx.objectStore(STORE).delete(_key(slot)); tx.oncomplete=function(){res();}; tx.onerror=function(){rej(tx.error);}; }); }); }
+  function idbAll(){ return idbOpen().then(function(db){ return new Promise(function(res,rej){ var tx=db.transaction(STORE,'readonly'); var rq=tx.objectStore(STORE).getAll(); rq.onsuccess=function(){ var m={}, a=rq.result||[]; for (var i=0;i<a.length;i++){ if (a[i].unit===UNIT) m[a[i].slot]=a[i]; } res(m); }; rq.onerror=function(){rej(rq.error);}; }); }); }
+
+  var _slotMeta = {};   // slot -> {time, note} (thumbnails drawn straight from records)
+  function _thumbCanvas(thumb){
+    var c = document.createElement('canvas'); c.width = thumb.w; c.height = thumb.h;
+    var g = c.getContext('2d');
+    var rgba = (thumb.rgba instanceof Uint8ClampedArray) ? thumb.rgba : new Uint8ClampedArray(thumb.rgba.buffer ? thumb.rgba.buffer : thumb.rgba);
+    g.putImageData(new ImageData(rgba, thumb.w, thumb.h), 0, 0);
+    return c;
+  }
+  var _expanded = -1;
+  function _renderSaves(){
+    idbAll().then(function(map){
+      var grid = _byId('twin-saves-grid'); grid.innerHTML = '';
+      for (var s=0; s<SLOTS; s++){
+        (function(slot){
+          var rec = map[slot];
+          var card = document.createElement('div');
+          card.className = 'twin-slot' + (rec ? '' : ' empty') + (_expanded===slot && rec ? ' expanded' : '');
+          if (rec){
+            var thumbWrap = document.createElement('div'); thumbWrap.className = 'thumb';
+            try { if (rec.thumb) thumbWrap.appendChild(_thumbCanvas(rec.thumb)); } catch(e){}
+            var when = rec.time ? new Date(rec.time) : null;
+            var wtxt = when ? (('0'+when.getHours()).slice(-2)+':'+('0'+when.getMinutes()).slice(-2)+' '+(when.getMonth()+1)+'/'+when.getDate()) : '';
+            var meta = document.createElement('div'); meta.className = 'meta';
+            meta.innerHTML = '<span class="num">SLOT '+(slot+1)+'</span><span>'+wtxt+'</span>';
+            var detail = document.createElement('div'); detail.className = 'detail';
+            detail.innerHTML = '<div class="pad"><div class="acts"><button class="load">Load</button><button class="del">Delete</button></div></div>';
+            card.appendChild(thumbWrap); card.appendChild(meta); card.appendChild(detail);
+            card.addEventListener('click', function(ev){ if (ev.target.closest('.acts')) return; _expanded = (_expanded===slot ? -1 : slot); _renderSaves(); });
+            detail.querySelector('.load').addEventListener('click', function(){ _loadSlot(slot); });
+            detail.querySelector('.del').addEventListener('click', function(){ idbDel(slot).then(function(){ _expanded=-1; _twinToast('Deleted slot '+(slot+1)); _renderSaves(); }); });
+          } else {
+            var t2 = document.createElement('div'); t2.className = 'thumb'; t2.innerHTML = '<div class="plus">+</div>';
+            var m2 = document.createElement('div'); m2.className = 'meta';
+            m2.innerHTML = '<span class="num">SLOT '+(slot+1)+'</span><span>Save</span>';
+            card.appendChild(t2); card.appendChild(m2);
+            card.addEventListener('click', function(){ _saveSlot(slot); });
+          }
+          grid.appendChild(card);
+        })(s);
+      }
+    });
+  }
+
+  function _saveSlot(slot){ if (!worker){ _twinToast('Insert batteries first'); return; } worker.postMessage({ save:{ slot:slot } }); _twinToast('Saving slot '+(slot+1)+'…'); }
+  function _twinOnSaveResult(res){
+    var rec = { id:_key(res.slot), unit:res.unit, slot:res.slot, snap:res.snap, thumb:res.thumb, time:res.time };
+    idbPut(rec).then(function(){ _twinToast('Saved to slot '+(res.slot+1)); if (savesOpen) _renderSaves(); })
+      .catch(function(err){ _twinToast('Save failed: '+(err&&err.message||err)); });
+  }
+  function _loadSlot(slot){
+    idbGet(slot).then(function(rec){
+      if (!rec || !rec.snap){ _twinToast('Slot '+(slot+1)+' is empty'); return; }
+      // The machine is already frozen (the grid is open); restore is applied to
+      // the frozen state and the resume happens on overlay-close (below) unless
+      // the user explicitly paused. No force-resume here.
+      worker.postMessage({ load:{ snap:rec.snap, slot:slot } });   // structured-clone copy (IDB record stays intact)
+      _twinToast('Loading slot '+(slot+1)+'…');
+    });
+  }
+  function _twinOnLoadResult(res){ if (res && res.ok){ _twinToast('Loaded slot '+(res.slot+1)); _setSavesOpen(false); } }
 })();

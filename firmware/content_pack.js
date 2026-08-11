@@ -190,6 +190,22 @@
 {"sha256":"ab346f76a6f706f4bb5a8d95eb5fcd84c4ef9f99dfc3a35a1c1a5e09524cd1c9","bytes":284070,"path":"artwork/gnw_zelda/gnw_zelda_top.svg"}
 ];
   var TFT = { internal: 131072, mario: 1048576, zelda: 4194304 };
+  // Pokemon mini: 10 game ROMs (512 KB each) + one shared 4 KB BIOS ('bios'),
+  // matched by whole-file SHA-256 exactly like the classic ROMs.
+  var PM_MANIFEST = [
+{"sha256":"16b3a68bb9d3e5c577bc6cf6d9d73c39b4c40b76ca3fbf1a0b9288089f97a014","bytes":524288,"device":"pm-pichu-bros-mini"},
+{"sha256":"7914ae74c227dd29c93fc9ee23f16da4489396cfa160d034c2394f4bcd3d06e3","bytes":524288,"device":"pm-pokemon-breeder-mini"},
+{"sha256":"9c6619a683f76dcb63957d02ac4e812f9148b85e05cc6705b24a8a4e6080b221","bytes":524288,"device":"pm-pokemon-party-mini"},
+{"sha256":"5ac75fd2b6d5dea85e17e5e6131339e0e19eefe978a6f4b7f8700fb28c89cc23","bytes":524288,"device":"pm-pokemon-pinball-mini"},
+{"sha256":"6c473867e9bad1883307d5372dedfa9443a620423d82ae83b6171fcaaffc291e","bytes":524288,"device":"pm-pokemon-puzzle-collection"},
+{"sha256":"e303afb55f858b284029abe69a7f96d58bf46956cd3e12cc3c1134e171ffae25","bytes":524288,"device":"pm-pokemon-puzzle-collection-vol-2"},
+{"sha256":"bc5d1c0664d0f80900558f1e99dded5fe597535b468aefc13c1dae51c18b4fbb","bytes":524288,"device":"pm-pokemon-race-mini"},
+{"sha256":"b54fc57472d363111eb0b229b5e26d3eb653c1b85f211501beab640530d19805","bytes":524288,"device":"pm-pokemon-shock-tetris"},
+{"sha256":"dc96d606ed54be035e8c3139a0b20d462b7622b15f617ccc6be411dcbd68c921","bytes":524288,"device":"pm-pokemon-zany-cards"},
+{"sha256":"19265776c8aa438a20a18064fa4097c33ba8edf9d4b712c73e3fd431bd724187","bytes":524288,"device":"pm-togepis-great-adventure"},
+{"sha256":"45a1c7f28b9ad585e67f047abe9c1c956724bfcab8c9011002af4274e7c50e8f","bytes":4096,"device":"bios"}
+  ];
+  var PM_ROM = 524288, PM_BIOS = 4096;
   var MAX_ROM = 262144;      // ROM candidates: this size or smaller (matches builder)
   var MAX_SVG = 2097152;     // SVG candidates: this size or smaller
 
@@ -273,14 +289,15 @@
 
   // --- identify entries → { roms, art, tft } (mirrors the builder's Consider) -
   function identify(entries) {
-    var romByHash = {}, svgByHash = {};
+    var romByHash = {}, svgByHash = {}, pmByHash = {};
     ROM_MANIFEST.forEach(function (r) { (romByHash[r.sha256] = romByHash[r.sha256] || []).push(r); });
     SVG_MANIFEST.forEach(function (s) { svgByHash[s.sha256] = s.path; });
+    PM_MANIFEST.forEach(function (p) { pmByHash[p.sha256] = p.device; });
     var knownLens = ROM_MANIFEST.map(function (r) { return r.bytes; })
       .filter(function (v, i, a) { return a.indexOf(v) === i; })
       .sort(function (a, b) { return b - a; });
 
-    var roms = {}, art = {}, groups = {};   // groups[dir] = { internal, mario, zelda }
+    var roms = {}, art = {}, groups = {}, pmini = {};   // groups[dir] = { internal, mario, zelda }
     var chain = Promise.resolve();
     entries.forEach(function (e) {
       var len = e.bytes.length;
@@ -293,6 +310,24 @@
           else if (!g.zelda) { g.zelda = e.bytes; }
           return;
         }
+        // Pokemon mini ROM/BIOS (whole-file hash). A matched 512 KB or 4 KB file
+        // is stored here; an unmatched 512 KB file is not a ROM/SVG candidate, so
+        // it stops. An unmatched 4 KB file falls through to the classic paths.
+        var pmCheck = (len === PM_ROM || len === PM_BIOS)
+          ? sha256hex(e.bytes).then(function (h) {
+              if (pmByHash[h]) { if (!pmini[pmByHash[h]]) pmini[pmByHash[h]] = b64(e.bytes); return true; }
+              return false;
+            })
+          : Promise.resolve(false);
+        return pmCheck.then(function (pmMatched) {
+          if (pmMatched || len === PM_ROM) return;
+          return identifyRomOrSvg(e, len);
+        });
+      });
+    });
+
+    // classic ROM (with truncation fallback) then SVG whole-file hash
+    function identifyRomOrSvg(e, len) {
         if (len === 0 || len > MAX_SVG) return;
         var tryLens = [len];                            // ROM: try real length, then smaller known
         if (len <= MAX_ROM) for (var j = 0; j < knownLens.length; j++) if (knownLens[j] < len) tryLens.push(knownLens[j]);
@@ -315,8 +350,7 @@
             if (svgByHash[h] && !art[svgByHash[h]]) art[svgByHash[h]] = utf8(e.bytes);
           });
         });
-      });
-    });
+    }
 
     return chain.then(function () {
       var tft = {};
@@ -326,7 +360,7 @@
         if (g.mario && !tft.mario) tft.mario = { internal: b64(g.internal), external: b64(g.mario) };
         else if (g.zelda && !tft.zelda) tft.zelda = { internal: b64(g.internal), external: b64(g.zelda) };
       });
-      return { roms: roms, art: art, tft: tft };
+      return { roms: roms, art: art, tft: tft, pokemini: pmini };
     });
   }
 
@@ -338,11 +372,16 @@
     var allArt = SVG_MANIFEST.map(function (s) { return s.path; });
     var haveArt = allArt.filter(function (p) { return pack.art[p]; });
     var haveTft = Object.keys(pack.tft || {});
+    var pm = pack.pokemini || {};
+    var allPm = PM_MANIFEST.filter(function (p) { return p.device !== 'bios'; }).map(function (p) { return p.device; });
+    var havePm = allPm.filter(function (d) { return pm[d]; });
+    var pmBios = !!pm.bios;
     return {
       roms: { found: haveRom.length, total: allRom.length, missing: allRom.filter(function (d) { return haveRom.indexOf(d) < 0; }) },
       art: { found: haveArt.length, total: allArt.length },
       tft: { found: haveTft.length, total: 2, units: haveTft },
-      empty: haveRom.length === 0 && haveArt.length === 0 && haveTft.length === 0
+      pokemini: { found: havePm.length, total: allPm.length, bios: pmBios, missing: allPm.filter(function (d) { return havePm.indexOf(d) < 0; }) },
+      empty: haveRom.length === 0 && haveArt.length === 0 && haveTft.length === 0 && havePm.length === 0 && !pmBios
     };
   }
 
@@ -379,6 +418,9 @@
     roms: function () { return _pack && _pack.roms; },
     art: function () { return _pack && _pack.art; },
     tft: function (u) { return _pack && _pack.tft && _pack.tft[u]; },
+    // Pokemon mini: whole map ({id:b64, bios:b64}) or one id's base64. The main
+    // frontend lazy-loads firmware/pokemini_roms.json first; this is the fallback.
+    pokemini: function (id) { var pm = _pack && _pack.pokemini; if (!pm) return null; return id ? pm[id] : pm; },
     summary: function () { return _pack ? summarize(_pack) : null; },
     // Import a user-picked .zip: parse → identify → persist → apply. Resolves
     // with the summary; rejects if the file isn't a readable zip.

@@ -139,7 +139,13 @@
       linear-gradient(90deg, rgba(30,45,70,.04) 1px, transparent 1px);
   }
   :root[data-theme="light"] .overlay { background: rgba(28, 36, 50, .38); }
-  :root[data-theme="light"] .device-card:not([data-series="special"]) .img { background: linear-gradient(#ffffff, #eef0f4); }
+  :root[data-theme="light"] .device-card:not([data-series="special"]):not([data-series="pokemon-mini"]) .img { background: linear-gradient(#ffffff, #eef0f4); }
+  /* Pokémon Mini tiles + drawer stage: the shared console hero is a translucent
+     cut-out with a transparent background, so it must float on the card with NO
+     forced backing box in EITHER theme (the same transparent-bg treatment the
+     'special' cut-out needs). Overrides the base .device-card .img gradient in
+     dark mode; the light-mode override above now excludes pokemon-mini too. */
+  .device-card[data-series="pokemon-mini"] .img { background: transparent; }
   /* NOT crystal -- its LCD stays genuinely transparent (see-through) in both
      themes; only the opaque-screen units get a light backing here. Also NOT the
      non-rectangular series (Micro Vs./Panorama/Table Top/Multi Screen): their
@@ -994,6 +1000,54 @@
   }
   .device-card .img .tft-emu-screen.ready { opacity: 1; }
 
+  /* ---- Tetris Jr. live device preview -----------------------------------
+     Preservation, not replacement: the REAL device artwork (.tj-emu-art,
+     PrototypeTetrisJrArt.webp) is the base image and a TRANSPARENT <iframe>
+     (.tj-emu-screen, our play page in screens-only demo mode) lays the two live
+     LCD segments exactly over its green windows. Mirrors .tft-emu. The wrapper
+     sizes to the artwork (capped to the host box, aspect kept) and the iframe
+     covers it inset:0, so the demo page's measured screen rects line up with
+     the artwork windows. */
+  .device-card .img .tj-emu {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    /* Match the multi-screen gnw devices (e.g. Donkey Kong): the portrait
+       clamshell sits at ~90% of the image-box height, aspect-locked to the
+       artwork so it's the same footprint on the tile and the drawer stage. */
+    height: 90%; aspect-ratio: 1100 / 1369; z-index: 2; pointer-events: none;
+  }
+  .device-card .img .tj-emu-art {
+    position: absolute; inset: 0; width: 100%; height: 100%; -webkit-user-drag: none;
+  }
+  .device-card .img .tj-emu-screen {
+    position: absolute; inset: 0; width: 100%; height: 100%; border: 0;
+    background: transparent; z-index: 5; pointer-events: none;
+  }
+
+  /* ---- Pokémon mini live tile/stage preview -----------------------------
+     Mirrors .tft-emu: the colour console artwork (.pm-emu-art) is the bezel
+     and a 96x64 <canvas> (.pm-emu-screen) sits over the LCD window running
+     the game in a muted, input-less attract/demo (same as a G&W tile shows
+     its device running). The screen rect uses the SAME proportions the
+     PokemonMiniDevice play bezel uses (shell 198x254, window 96x64 @ 51,58),
+     which the play overlay confirmed aligns to this console art. The canvas
+     fades in on its first painted frame; until then the art's own screen
+     shows (the static-console fallback). Tile sweep keys off
+     .pm-emu-screen[data-pm]; the drawer stage's canvas carries no data-pm so
+     the sweep skips it (mirrors the gnw/TFT stage). */
+  .device-card .img .pm-emu {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    height: 88%; z-index: 2; pointer-events: none;
+  }
+  .device-card .img .pm-emu-art {
+    display: block; height: 100%; width: auto; -webkit-user-drag: none;
+  }
+  .device-card .img .pm-emu-screen {
+    position: absolute; left: 25.76%; top: 22.83%; width: 48.48%; height: 25.2%;
+    background: #b0c050; image-rendering: pixelated; opacity: 0; transition: opacity .3s ease;
+    z-index: 5;   /* above the drawer's .stage-sheen (z 4), like .tft-emu-screen */
+  }
+  .device-card .img .pm-emu-screen.ready { opacity: 1; }
+
   /* ---- Loading shimmer -------------------------------------------------
      A skeleton sweep shown INSTEAD of the device art until that art has
      actually decoded, so a tile never pops from empty to fully-drawn.
@@ -1406,6 +1460,28 @@
     -webkit-mask: var(--unit-mask) 0 0 / 100% 100% no-repeat;
             mask: var(--unit-mask) 0 0 / 100% 100% no-repeat;
     transition: background-position .18s ease-out;
+  }
+  /* Static-preview stage (e.g. the Pokémon Mini console): the hero is drawn by
+     .img::after at `auto 70%`, centred — NOT filling the box like a live stage's
+     Unit.png does — so size the sheen's silhouette mask the same way. The device
+     PNG's own alpha then confines the streak to the console outline instead of
+     spilling across the whole card. */
+  #device-stage .static-stage .stage-sheen {
+    -webkit-mask: var(--unit-mask) center / auto 70% no-repeat;
+            mask: var(--unit-mask) center / auto 70% no-repeat;
+  }
+  /* Tetris Jr. (the only 'prototype' series unit) is a reskinned Multi Screen
+     cabinet, so in the drawer it must read at the SAME size as the LIVE Multi
+     Screen devices -- Safe Buster et al. render their .tile-emu at ~90% of the
+     736px card height (≈662px tall). The default static hero is only auto 70%
+     (≈515px), which looked too small; bump this one static stage to auto 90%
+     so the prototype cabinet matches, and align its sheen mask to the same
+     size. Scoped to [data-series="prototype"] so the Pokémon Mini static
+     stages keep their own 70%. */
+  #device-stage .static-stage[data-series="prototype"] .img::after { background-size: auto 90%; }
+  #device-stage .static-stage[data-series="prototype"] .stage-sheen {
+    -webkit-mask: var(--unit-mask) center / auto 90% no-repeat;
+            mask: var(--unit-mask) center / auto 90% no-repeat;
   }
   @media (prefers-reduced-motion: reduce) {
     #device-stage .stage-sheen { transition: none; }
@@ -2259,6 +2335,11 @@
     line-height: 1.68;
     font-size: 14.5px;
   }
+  /* Light mode: the dark-mode blue-grey above is unreadable on a light
+     surface, so give the drawer's descriptive body text a legible,
+     friendlier blue (shared by the G&W Overview/Gameplay/Legacy sub-text
+     and the Pokémon Mini About text). */
+  :root[data-theme="light"] .device-modal-body .sect p { color: #2a5db0; }
 
   /* Status terminal panel */
   .status-panel {
@@ -2993,8 +3074,11 @@
   #play-devmode-code-wrap .src-code-view { height: 100%; }
   #play-devmode-body .src-code-view .devmode-line { background: rgba(255,59,59,.18); display: inline-block; width: 100%; }
   .play-controls {
+    /* Replaced by the Controls / Keys screen (key icon in the toolbar). Kept in
+       the DOM (its buttons still wire clicks) but hidden — mute moved to toolbar. */
+    display: none !important;
     padding: 10px 18px 14px; border-top: 1px solid var(--line);
-    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    gap: 8px; align-items: center; flex-wrap: wrap;
     font-size: 11px; color: var(--muted);
   }
   /* display:contents keeps these wrapper spans transparent to the flex
@@ -3026,19 +3110,83 @@
   }
   .play-sep { color: var(--line); font-size: 14px; padding: 0 2px; }
   /* Always-visible mute toggle, pushed to the far right of the control bar (key "−"). */
-  .play-mute-btn { order: 100; margin-left: auto; }
+  /* mute lives in the toolbar now (not the old legend), so no order/auto-margin —
+     it must sit before the close button, which stays top-right-most. A plain
+     speaker icon button (no "−" key hint; that's shown on the Controls screen). */
+  .play-mute-btn { font-size: 14px; line-height: 1; }
   /* Pause/resume is a gameplay control, not a screen transition — a wider gap
      separates it from Developer Mode/Zoom. Icon-only, square-ish. */
   .play-pause-toggle { margin-right: 10px; padding: 5px 8px; display: inline-flex; align-items: center; }
   /* Icon-only header buttons (Save / Load / Developer Mode) — square-ish, icon
      centred, matching the pause button. Labels live in title/aria-label only. */
   .play-icon-btn { padding: 5px 8px; display: inline-flex; align-items: center; justify-content: center; }
+
+  /* ── Play-controls overlay pill ──────────────────────────────────────────
+     Translucent rounded bar floated top-centre over the device artwork, styled
+     after Tetris Jr's #tj-toolbar (dark rgba bg, rounded-full, backdrop-blur).
+     Positioned relative to #play-emu-root, which the Saves/Keys panels already
+     treat as their positioning context. z-index sits ABOVE those panels (80) so
+     that, when a sub-screen is open, the pill morphs into the "← Back" control
+     floating over it. The pill smoothly extends/shrinks between the two states
+     via a width transition (see gnw.js _gnwSetPill, which drives an explicit
+     px width for the tween); contents cross-fade. Kept small + translucent so
+     it never buries the LCD. */
+  #play-emu-root { position: relative; }
+  #play-toolbar-pill, #pm-toolbar-pill {
+    position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+    z-index: 90; display: flex; justify-content: center; box-sizing: border-box;
+    max-width: calc(100% - 20px); overflow: hidden;
+    background: rgba(16,18,22,.72); border: 1px solid rgba(255,255,255,.14);
+    border-radius: 999px; padding: 4px 6px;
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    box-shadow: 0 8px 24px -12px rgba(0,0,0,.7);
+    transition: width .28s cubic-bezier(.4,0,.2,1);
+  }
+  #pm-toolbar-pill { display: none; }
+  #pm-play-overlay.open #pm-toolbar-pill { display: flex; }
+  .pill-controls { display: flex; gap: 4px; flex-wrap: nowrap; justify-content: center; }
+  /* Back button: hidden in gameplay, revealed (and controls hidden) when a
+     sub-screen is open. The newly-shown group fades in under the width tween. */
+  .pill-back {
+    display: none; align-items: center; gap: 6px; margin: 0; white-space: nowrap;
+    background: transparent; border: 0; border-radius: 999px; cursor: pointer;
+    color: #d7dce6; font: inherit; font-size: 12px; font-weight: 700; line-height: 1;
+    padding: 6px 13px; -webkit-tap-highlight-color: transparent;
+  }
+  .pill-back:hover { background: rgba(255,255,255,.10); }
+  #play-toolbar-pill.sub-open .pill-controls, #pm-toolbar-pill.sub-open .pill-controls { display: none; }
+  #play-toolbar-pill.sub-open .pill-back, #pm-toolbar-pill.sub-open .pill-back { display: inline-flex; }
+  @media (prefers-reduced-motion: no-preference) {
+    #play-toolbar-pill .pill-controls, #play-toolbar-pill .pill-back { animation: pillFade .26s ease; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #play-toolbar-pill { transition: none; }
+  }
+  @keyframes pillFade { from { opacity: .15; } to { opacity: 1; } }
+  .play-pbtn {
+    display: inline-flex; align-items: center; gap: 5px; margin: 0; white-space: nowrap;
+    background: transparent; border: 0; border-radius: 999px; cursor: pointer;
+    color: #d7dce6; font: inherit; font-size: 12px; font-weight: 600; line-height: 1;
+    padding: 6px 11px; -webkit-tap-highlight-color: transparent;
+  }
+  .play-pbtn:hover { background: rgba(255,255,255,.10); }
+  .play-pbtn:active, .play-pbtn.active { background: rgba(155,225,93,.20); color: #eaffd6; }
+  .play-pbtn svg { display: block; flex: 0 0 auto; }
+  .play-pbtn[disabled] { opacity: .4; cursor: default; }
+  .play-pbtn.muted { color: #f0b7af; }
+  #play-mute-label { font-size: 13px; line-height: 1; }
+
+  /* Pause indicator — matches Tetris Jr's style: a small centred badge/pill over
+     the device (NOT a full-screen dim), so the device stays fully visible. */
   #play-paused-indicator {
     position: absolute; inset: 0; z-index: 60;
     display: flex; align-items: center; justify-content: center;
-    background: rgba(6,8,12,.60); color: #fff;
-    font-weight: 800; font-size: 20px; letter-spacing: .34em;
     pointer-events: none;
+  }
+  #play-paused-indicator .paused-badge {
+    background: rgba(16,18,22,.82); border: 1px solid var(--line); border-radius: 10px;
+    color: var(--text); font-weight: 700; font-size: 15px; letter-spacing: .18em;
+    padding: 10px 20px; box-shadow: 0 8px 26px rgba(0,0,0,.5);
   }
   /* Visual Filmstrip Rewind — VHS scan-bands pinned to the LCD glass (Ctrl+← or
      the ◄◄ button). The two overlays are mirrored onto #play-svg-container /
@@ -3056,11 +3204,14 @@
   }
   @keyframes gnw-scan-bands { 0% { transform: translateY(0); } 50% { transform: translateY(9px); } 100% { transform: translateY(-6px); } }
   #play-rewind-hud {
-    position: absolute; bottom: 4px; left: 6px; z-index: 1;
-    font: 800 11px/1 ui-monospace, "Cascadia Mono", Consolas, monospace;
-    color: #fff; letter-spacing: .5px; text-shadow: 1px 1px 2px rgba(0,0,0,.9);
-    white-space: nowrap;
+    position: absolute; top: 44px; left: 50%; transform: translateX(-50%); z-index: 62;
+    display: none; white-space: nowrap;
+    background: rgba(16,18,22,.82); border: 1px solid var(--line); border-radius: 8px;
+    color: #ffd27a; font-size: 13px; font-weight: 700; letter-spacing: .08em;
+    padding: 5px 12px; font-variant-numeric: tabular-nums;
+    box-shadow: 0 8px 26px rgba(0,0,0,.5);
   }
+  #play-rewind-hud.on { display: block; }
   #play-rewind-btn.active { color: var(--accent); }
 
   /* About / timeline modal */
@@ -4542,6 +4693,19 @@
     display: flex; flex-direction: column; gap: 8px;
     max-width: 380px; width: calc(100vw - 28px); pointer-events: none;
   }
+  /* The stack toasts (toast()/toastOk/toastErr/toastWarn) live inside
+     .toast-host. Undo the bleed from the bottom-centered #toast "hint" rule
+     above -- it's written as a bare `.toast`, so it also matched these and
+     pinned them to the bottom with opacity:0 (they only showed during their
+     0.22s entrance, faded). Reset position/opacity so they sit top-right and
+     stay their full duration. */
+  .toast-host .toast { position: static; inset: auto; transform: none; opacity: 1; color: #e7ecf2; }
+  /* The toast chip is dark in BOTH themes, so its text must stay light -- the
+     default `color: var(--text)` flips to dark navy in light mode (unreadable
+     on the dark chip). Pin the body/icon/close to light. */
+  .toast-host .toast .toast-body, .toast-host .toast .toast-icon { color: #e7ecf2; }
+  .toast-host .toast .toast-close { color: #9aa4b4; }
+  :root[data-theme="light"] #toast { color: #e7ecf2; }
   .toast {
     padding: 11px 14px 11px 14px;
     border-radius: 11px;
@@ -4969,8 +5133,9 @@
     </button>
     <nav class="nav-links" id="nav-links">
       <button class="nav-link" data-route="/" onclick="route('/')">Home</button>
-      <button class="nav-link collection-gated" data-route="/collection" onclick="route('/collection')">Collection</button>
-      <button class="nav-link" data-route="/series" onclick="route('/series')">Series</button>
+      <button class="nav-link collection-gated" data-route="/collection" onclick="route('/collection')">GnW</button>
+      <button class="nav-link" data-route="/pokemon-mini" onclick="route('/pokemon-mini')">Pokémon Mini</button>
+      <button class="nav-link" data-route="/series" onclick="route('/series')">Timeline</button>
       <button class="nav-link" data-route="/about" onclick="route('/about')">About</button>
       <span class="nav-divider" aria-hidden="true"></span>
       <button class="nav-link nav-vault" id="nav-vault-btn" onclick="openVaultModal()" title="Settings — view or switch your access code"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span class="nav-vault-label">Settings</span></button>
@@ -5083,6 +5248,19 @@
         </div>
       </div>
       <div class="timeline" id="timeline-list"></div>
+    </div>
+    <div class="section" style="margin-top:6px">
+      <div class="section-head"><div>
+        <div class="section-kicker">Beyond Game &amp; Watch</div>
+        <h2 class="section-title">Ten games, three colours: the Pokémon mini.</h2>
+        <p class="section-desc">Two decades after that first juggler, Nintendo shrank an entire cartridge console into the palm of a hand. The <strong>Pokémon mini</strong> (2001) is still the smallest cartridge-based console Nintendo has ever built — and it tucked an infrared link for head-to-head play, a shake sensor, a rumble motor and a real-time clock into a translucent shell. Ten games shipped across its short life (five of them Japan-only), sold in three clear colours.</p>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:18px">
+          <span style="display:inline-flex;align-items:center;gap:8px;padding:6px 13px;border-radius:999px;background:rgba(255,255,255,.05);border:1px solid var(--line);font-size:13px;font-weight:600;color:var(--text)"><span style="width:13px;height:13px;border-radius:50%;background:#5aa6e6;box-shadow:inset 0 0 0 1px rgba(0,0,0,.2)"></span>Wooper Blue</span>
+          <span style="display:inline-flex;align-items:center;gap:8px;padding:6px 13px;border-radius:999px;background:rgba(255,255,255,.05);border:1px solid var(--line);font-size:13px;font-weight:600;color:var(--text)"><span style="width:13px;height:13px;border-radius:50%;background:#8fc24a;box-shadow:inset 0 0 0 1px rgba(0,0,0,.2)"></span>Chikorita Green</span>
+          <span style="display:inline-flex;align-items:center;gap:8px;padding:6px 13px;border-radius:999px;background:rgba(255,255,255,.05);border:1px solid var(--line);font-size:13px;font-weight:600;color:var(--text)"><span style="width:13px;height:13px;border-radius:50%;background:#ab80d2;box-shadow:inset 0 0 0 1px rgba(0,0,0,.2)"></span>Smoochum Purple</span>
+        </div>
+        <button class="btn btn-ghost" onclick="route('/pokemon-mini')" style="margin-top:18px">Explore the Pokémon mini →</button>
+      </div></div>
     </div>
   </section>
 
@@ -5197,6 +5375,97 @@
       </div>
       <div class="grid" id="device-grid"></div>
       <div id="empty" class="empty" style="display:none;">No units match your filter. Try clearing the search.</div>
+    </div>
+  </section>
+
+  <!-- POKÉMON MINI (parallel catalogue — reuses the collection components) -->
+  <section class="view" id="view-pokemon-mini">
+    <div class="section">
+      <div class="section-head">
+        <div>
+          <div class="section-kicker">The Catalogue</div>
+          <h2 class="section-title">Pokémon Mini — the smallest cartridge system ever made.</h2>
+          <p class="section-desc">Every game for Nintendo's tiny 2001 Pokémon handheld, in one place. Hunt by name, sort the shelf, and tap any cartridge for the story and the hardware behind it.</p>
+        </div>
+      </div>
+      <div class="collection-toolbar">
+        <div class="view-mode-row">
+          <button class="view-mode-icon-btn active" id="pm-display-device-btn" onclick="setPMDisplayMode('device')" title="Device View" aria-label="Device View">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="5" y="2" width="14" height="20" rx="2.5"/>
+              <rect x="7.5" y="5" width="9" height="6.5" rx="0.5"/>
+              <circle cx="9" cy="16.5" r="1.3"/>
+              <circle cx="15" cy="16.5" r="1.3"/>
+            </svg>
+          </button>
+          <button class="view-mode-icon-btn" id="pm-display-tile-btn" onclick="setPMDisplayMode('tile')" title="Tile View" aria-label="Tile View">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3"  y="3"  width="8" height="8" rx="2"/>
+              <rect x="13" y="3"  width="8" height="8" rx="2"/>
+              <rect x="3"  y="13" width="8" height="8" rx="2"/>
+              <rect x="13" y="13" width="8" height="8" rx="2"/>
+            </svg>
+          </button>
+          <button class="view-mode-icon-btn" id="pm-display-coverflow-btn" onclick="setPMDisplayMode('coverflow')" title="Cover Flow" aria-label="Cover Flow">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="2.5,8 6,6 6,18 2.5,16"/>
+              <rect x="9" y="4.5" width="6" height="15" rx="1"/>
+              <polygon points="21.5,8 18,6 18,18 21.5,16"/>
+            </svg>
+          </button>
+          <span class="view-mode-divider" aria-hidden="true"></span>
+          <button class="view-mode-icon-btn active" id="pm-hardware-view-btn" onclick="setPMViewMode('hardware')" title="Hardware Photos" aria-label="Hardware Photos">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="4" y="3" width="16" height="18" rx="2"/>
+              <rect x="7" y="6" width="10" height="6.5" rx="0.5"/>
+              <circle cx="8" cy="17.3" r="1.05"/>
+              <circle cx="12" cy="17.3" r="1.05"/>
+              <circle cx="16" cy="17.3" r="1.05"/>
+            </svg>
+          </button>
+          <button class="view-mode-icon-btn" id="pm-boxart3d-view-btn" onclick="setPMViewMode('boxart3d')" title="3D Box Art" aria-label="3D Box Art">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 9 L4 19 L13 21.5 L13 11.5 Z"/>
+              <path d="M4 9 L9.5 5.5 L19 8 L13 11.5 Z"/>
+              <path d="M13 11.5 L19 8 L19 16.5 L13 21.5 Z"/>
+            </svg>
+          </button>
+          <span class="view-mode-divider" aria-hidden="true"></span>
+          <button class="view-mode-icon-btn active" id="pm-sort-date-btn" onclick="setPMSort('date')" title="Sort by Release Date" aria-label="Sort by Release Date">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="5" width="18" height="16" rx="2"/>
+              <line x1="3" y1="10" x2="21" y2="10"/>
+              <line x1="8" y1="2.5" x2="8" y2="6.5"/>
+              <line x1="16" y1="2.5" x2="16" y2="6.5"/>
+            </svg>
+          </button>
+          <button class="view-mode-icon-btn" id="pm-sort-alpha-btn" onclick="setPMSort('alpha')" title="Sort Alphabetically" aria-label="Sort Alphabetically">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <text x="3.2" y="10.5" font-size="9.5" font-weight="700" font-family="inherit" fill="currentColor" stroke="none">A</text>
+              <text x="12.8" y="21" font-size="9.5" font-weight="700" font-family="inherit" fill="currentColor" stroke="none">Z</text>
+              <path d="M19 4v14"/>
+              <path d="M15.8 15.2 L19 18.5 L22.2 15.2"/>
+            </svg>
+          </button>
+          <button class="view-mode-icon-btn" id="pm-sort-random-btn" onclick="setPMSort('random')" title="Sort Random Order" aria-label="Sort Random Order">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="16 3 21 3 21 8"/>
+              <line x1="4" y1="20" x2="21" y2="3"/>
+              <polyline points="21 16 21 21 16 21"/>
+              <line x1="15" y1="15" x2="21" y2="21"/>
+              <line x1="4" y1="4" x2="9" y2="9"/>
+            </svg>
+          </button>
+        </div>
+        <div class="filter-bar">
+          <div class="search">
+            <span style="color:var(--muted)">⌕</span>
+            <input id="pm-search" type="text" placeholder="Search Pokémon Mini games…" oninput="renderPM()">
+          </div>
+        </div>
+      </div>
+      <div class="grid" id="pm-device-grid"></div>
+      <div id="pm-empty" class="empty" style="display:none;">No games match your search. Try clearing it.</div>
     </div>
   </section>
 
@@ -5649,7 +5918,7 @@
         <button class="modal-close" onclick="closeTftPlay()" aria-label="Close">×</button>
       </div>
     </div>
-    <iframe id="tft-play-frame" title="Playable device" allow="autoplay" style="width:100%;height:min(76vh,760px);border:0;display:block;background:#0b0c0e;"></iframe>
+    <iframe id="tft-play-frame" title="Playable device" allow="autoplay" style="width:100%;height:min(90vh,588px);border:0;display:block;background:#0b0c0e;"></iframe>
     <!-- In-place "open custom firmware" panel (overlays the iframe, like the save/load grid) -->
     <div id="tft-custom-panel" style="display:none;padding:26px 30px 34px;background:#0b0c0e;min-height:min(76vh,760px)">
       <div style="max-width:560px;margin:0 auto">
@@ -5678,6 +5947,140 @@
   </div>
 </div>
 
+<!-- Tetris Jr. (TR-66) play: a clean-room JS recreation (no ROM/firmware), loaded as
+     a self-contained page in an iframe — the TFT-twin iframe pattern, minus the
+     custom-firmware UI. -->
+<div class="overlay" id="tj-play-overlay" onclick="if(event.target===this)closeTjPlay()" role="dialog" aria-modal="true">
+  <div class="modal" id="tj-play-modal">
+    <div class="modal-head">
+      <div>
+        <div class="modal-sub">Prototype</div>
+        <div class="modal-title" id="tj-play-title">Play</div>
+      </div>
+      <button class="modal-close" onclick="closeTjPlay()" aria-label="Close">×</button>
+    </div>
+    <iframe id="tj-play-frame" title="Playable device" allow="autoplay" style="width:100%;height:min(76vh,760px);border:0;display:block;background:#0b0c0e;"></iframe>
+  </div>
+</div>
+
+<!-- Pokémon mini play: mounts the clean-room PokemonMiniDevice module directly
+     (no iframe). The bezel colour + console art match the tile the user clicked;
+     the ROM/BIOS bytes are handed in from firmware/pokemini_roms.json (or a
+     content pack) — see openPmPlay(). -->
+<style>
+  /* Transparent so the .modal's own theme-aware surface shows through — the
+     SAME background a G&W play window uses (.modal = linear-gradient(var(--bg-2),
+     var(--bg-1))): white in light mode, grey in dark. (Was a hardcoded near-black
+     #0b0c0e, which read black in both themes and didn't match the G&W window.) */
+  #pm-play-modal .pm-play-body { padding:20px 24px 26px; background:transparent; min-height:min(72vh,720px); display:flex; flex-direction:column; align-items:center; gap:16px; }
+  #pm-play-stage { display:flex; justify-content:center; }
+  #pm-play-mount { display:flex; justify-content:center; align-items:center; min-height:200px; }
+  .pm-play-loading { color:var(--muted); font-size:14px; padding:60px 0; }
+  /* Language picker beside the game name (appears only for multi-language games) */
+  .pm-title-row { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .pm-lang-select {
+    font: inherit; font-size:13px; color:var(--text); background:#0a0e14;
+    border:1px solid #2a3242; border-radius:8px; padding:4px 26px 4px 10px; cursor:pointer;
+    appearance:none; -webkit-appearance:none; line-height:1.3;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%238a94a6'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 9px center;
+  }
+  .pm-lang-select:hover { border-color:#3a465c; }
+  .pm-lang-select:focus { outline:none; border-color:var(--accent, #ee1515); }
+  .pm-legend { display:flex; flex-wrap:wrap; gap:6px 14px; justify-content:center; font-size:12px; color:var(--muted); max-width:520px; }
+  /* Pokémon mini Controls / keys screen — same look as the G&W one, fixed layout */
+  #pm-play-body { position: relative; }
+  #pm-keys-panel { position:absolute; inset:0; z-index:30; display:none; flex-direction:row; gap:16px;
+    background:linear-gradient(180deg,var(--bg-1),var(--bg-0)); border-radius:14px; padding:18px; overflow:hidden; }
+  #pm-keys-panel.open { display:flex; }
+  .pmk-wrap { flex:1; display:flex; align-items:center; justify-content:center; min-height:0; min-width:0; }
+  .pmk-diagram { position:relative; width:min(100%,540px); aspect-ratio:1.6; }
+  .pmk-btn { position:absolute; box-sizing:border-box; border:2px solid var(--muted); border-radius:9999px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; color:var(--text);
+    transition:border-color .15s,background .15s,transform .12s,box-shadow .15s; }
+  .pmk-btn:hover { border-color:var(--accent); background:rgba(238,21,21,.10); box-shadow:0 0 0 3px rgba(238,21,21,.14); transform:translateY(-1px); }
+  .pmk-btn .kk { font-weight:800; font-size:clamp(12px,2.4vw,20px); line-height:1; }
+  .pmk-btn .kl { font-size:clamp(8px,1.4vw,11px); color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+  /* C is a SHOULDER TRIGGER on the Pokémon mini's top edge, not a face button —
+     a wide, dome-topped button (rounded top, flatter bottom). Reuses .pmk-btn. */
+  .pmk-trigger { border-radius:45% 45% 16px 16px / 88% 88% 16px 16px; flex-direction:row; gap:5px; }
+  .pmk-trigger .kl { font-size:clamp(8px,1.3vw,10px); }
+  .pmk-dpad { position:absolute; color:var(--muted); transition:color .15s,filter .15s; }
+  .pmk-dpad svg { position:absolute; inset:0; width:100%; height:100%; display:block; }
+  .pmk-dpad:hover { color:var(--accent); filter:drop-shadow(0 0 5px rgba(238,21,21,.45)); }
+  .pmk-dpad .dk { position:absolute; font-weight:800; font-size:clamp(11px,2vw,17px); color:var(--text); }
+  .pmk-dpad .dk-up { top:7%; left:50%; transform:translateX(-50%); }
+  .pmk-dpad .dk-down { bottom:7%; left:50%; transform:translateX(-50%); }
+  .pmk-dpad .dk-left { left:7%; top:50%; transform:translateY(-50%); }
+  .pmk-dpad .dk-right { right:7%; top:50%; transform:translateY(-50%); }
+  /* Live highlight — a held key fills its button (mirrors the G&W Controls screen). */
+  .pmk-btn.lit { border-color:var(--accent); background:rgba(238,21,21,.24); box-shadow:0 0 0 3px rgba(238,21,21,.3); }
+  .pmk-btn.lit .kk, .pmk-btn.lit .kl { color:var(--text); }
+  .pmk-dpad.lit { color:var(--accent); filter:drop-shadow(0 0 6px rgba(238,21,21,.45)); }
+  .pmk-dpad.lit svg path { fill:rgba(238,21,21,.24); stroke:var(--accent); }
+  .pmk-extra { display:flex; flex-direction:column; justify-content:center; gap:12px; font-size:12px; color:var(--muted);
+    padding-left:16px; border-left:1px solid var(--line); white-space:nowrap; }
+  .pmk-extra span { display:inline-flex; align-items:center; gap:5px; }
+  .pmk-extra b { color:var(--text); background:#20241d; border:1px solid var(--line); border-radius:5px; padding:1px 6px; font-size:11px; font-weight:700; }
+  .pm-legend span { white-space:nowrap; }
+  .pm-legend b { color:var(--text); font-weight:700; }
+  .pm-legend-tip { margin-top:8px; font-size:12px; color:#c9a24a; text-align:center; max-width:520px; }
+  #pm-play-batteries { display:none; padding:34px 30px; background:transparent; min-height:min(60vh,560px); }
+</style>
+<div class="overlay" id="pm-play-overlay" onclick="if(event.target===this)closePmPlay()" role="dialog" aria-modal="true">
+  <div class="modal" id="pm-play-modal">
+    <div class="modal-head">
+      <div>
+        <div class="modal-sub">Pokémon mini</div>
+        <div class="pm-title-row">
+          <div class="modal-title" id="pm-play-title">Play</div>
+          <!-- Language picker: only shown when >1 language ROM is loaded for this
+               game (Pokémon mini titles are region/language-specific, unlike G&W). -->
+          <select id="pm-play-lang" class="pm-lang-select" aria-label="Language" style="display:none" onchange="pmSwitchLang(this.value)"></select>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div id="pm-keys-headbar" style="display:none;align-items:center;gap:12px">
+          <button type="button" class="save-back" onclick="pmCloseKeys()" aria-label="Back to game"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg> Back</button>
+          <span style="font-size:14px;font-weight:700;color:var(--text)">Controls</span>
+        </div>
+        <button type="button" id="pm-keys-btn" class="btn-tiny play-icon-btn" onclick="pmOpenKeys()" title="Controls / keys" aria-label="Show controls" style="display:none"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8.5" y="2" width="7" height="7" rx="1.8"/><rect x="1" y="10.5" width="7" height="7" rx="1.8"/><rect x="8.5" y="10.5" width="7" height="7" rx="1.8"/><rect x="16" y="10.5" width="7" height="7" rx="1.8"/></svg></button>
+        <button class="modal-close" onclick="closePmPlay()" aria-label="Close">×</button>
+      </div>
+    </div>
+    <div class="pm-play-body" id="pm-play-body">
+      <!-- Overlay pill toolbar (transparent, top-centre over the device) — matches
+           the G&W #play-toolbar-pill. PM's only play control is Controls/Keys. -->
+      <div id="pm-toolbar-pill" role="toolbar" aria-label="Play controls">
+        <div class="pill-controls">
+          <button type="button" id="pm-pill-keys-btn" class="play-pbtn" onclick="pmOpenKeys()" title="Controls / keys" aria-label="Show controls"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8.5" y="2" width="7" height="7" rx="1.8"/><rect x="1" y="10.5" width="7" height="7" rx="1.8"/><rect x="8.5" y="10.5" width="7" height="7" rx="1.8"/><rect x="16" y="10.5" width="7" height="7" rx="1.8"/></svg>Keys</button>
+        </div>
+        <button type="button" class="pill-back" onclick="pmCloseKeys()" aria-label="Back to game"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>Back</button>
+      </div>
+      <div id="pm-play-stage">
+        <div id="pm-play-mount"></div>
+      </div>
+      <div id="pm-play-legend" class="pm-legend"></div>
+      <!-- Controls / keys screen (mirrors the G&W one; fixed PM control layout) -->
+      <div id="pm-keys-panel"></div>
+    </div>
+    <!-- "Batteries not included" — shown if PM content is absent at launch -->
+    <div id="pm-play-batteries">
+      <div style="max-width:560px;margin:0 auto">
+        <div style="font-size:25px;line-height:1;filter:grayscale(.15);margin-bottom:8px">🕹️</div>
+        <h3 style="margin:0 0 10px;font-size:20px">Batteries not included.</h3>
+        <p style="color:var(--muted);font-size:13px;line-height:1.6;margin:0 0 16px">
+          This Pokémon mini game needs its ROM and the shared BIOS, which aren’t installed in this copy of the site.
+          Add them with a <b style="color:var(--text)">content pack (.zip)</b> in <b style="color:var(--text)">Settings → Content</b>
+          (kept on this device, nothing uploaded), or, if you’re running it locally, build them with
+          <code style="background:#0a0e14;border:1px solid #2a3242;border-radius:6px;padding:2px 7px;color:var(--accent-2,#f5c542)">firmware\build_gnw_roms.ps1</code>.
+        </p>
+        <button class="tft-open-btn" onclick="closePmPlay()">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="play-overlay" onclick="if(event.target===this)closePlayModal()" role="dialog" aria-modal="true">
   <div class="modal">
     <div class="modal-head">
@@ -5686,15 +6089,13 @@
         <div class="modal-title">Vermin <span style="font-weight:400;font-size:13px;color:var(--muted)">MT-03 · 1980</span></div>
       </div>
       <div id="play-head-actions" style="display:flex;align-items:center;gap:10px">
-        <div id="play-saves-headbar" style="display:none;align-items:center;gap:12px">
-          <button type="button" class="save-back" onclick="window.gnwCloseSaveGrid()" aria-label="Back to game"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg> Back</button>
-          <span style="font-size:14px;font-weight:700;color:var(--text)">Save slots</span>
-          <span id="play-saves-count" style="font-size:11.5px;color:var(--muted)"></span>
-        </div>
-        <button type="button" id="play-save-btn" class="btn-tiny play-icon-btn play-save-btn" onclick="window.gnwSaveSlot()" title="Save game to a slot" aria-label="Save game to a slot"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg></button>
-        <button type="button" id="play-load-btn" class="btn-tiny play-icon-btn" onclick="window.gnwOpenSaveGrid()" title="Load a saved game" aria-label="Load a saved game"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v5"/></svg></button>
-        <button type="button" id="play-rewind-btn" class="btn-tiny play-icon-btn" onmousedown="window.gnwStartRewind()" onmouseup="window.gnwStopRewind()" onmouseleave="window.gnwStopRewind()" ontouchstart="event.preventDefault();window.gnwStartRewind()" ontouchend="window.gnwStopRewind()" title="Rewind — hold, or Ctrl+←" aria-label="Rewind (hold)"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M11 6 L11 18 L3 12 Z M21 6 L21 18 L13 12 Z"/></svg></button>
-        <button type="button" id="play-pause-toggle" class="btn-tiny play-pause-toggle" onclick="window.gnwTogglePause()" title="Pause" aria-label="Pause" aria-pressed="false"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><rect x="2" y="1.5" width="2.6" height="9" rx=".6" fill="currentColor"/><rect x="7.4" y="1.5" width="2.6" height="9" rx=".6" fill="currentColor"/></svg></button>
+        <!-- The old #play-saves-headbar / #play-keys-headbar sub-screen bars were
+             removed: the overlay pill now morphs into the "← Back" control that
+             returns from the Saves grid / Keys screen (see #play-toolbar-pill). -->
+        <!-- The five play controls (Saves / Pause / Keys / Rewind / Mute) now live
+             in the #play-toolbar-pill overlaid top-centre over the device (built
+             below, inside #play-emu-root). Only the sub-screen headbars, the dev
+             tools and the Close (×) remain in the header. -->
         <button type="button" id="play-zoom-toggle" class="btn-tiny" style="display:none" onclick="gnwToggleZoom()">Zoom</button>
         <button type="button" id="play-devmode-toggle" class="btn-tiny play-icon-btn" style="display:none" onclick="gnwToggleDevMode()" title="Developer Mode" aria-label="Developer Mode"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></button>
         <button class="modal-close" onclick="closePlayModal()" aria-label="Close">×</button>
@@ -5725,10 +6126,28 @@
            where it belongs by default. -->
       <div id="play-modal-emu-home">
     <div id="play-emu-root">
+    <!-- Play-controls overlay pill — translucent rounded bar centred over the top
+         of the device artwork (mirrors Tetris Jr's #tj-toolbar). Lives inside
+         #play-emu-root so it travels with the relocatable emulator node and shares
+         its scope with the Saves/Keys sub-panels. The button IDs are preserved so
+         the existing gnw.js handlers (pause/mute/rewind sync) keep working. Hidden
+         (.sub-open) while the Saves grid or Keys screen is open. -->
+    <div id="play-toolbar-pill" role="toolbar" aria-label="Play controls">
+      <div class="pill-controls">
+        <button type="button" id="play-load-btn" class="play-pbtn" onclick="window.gnwOpenSaveGrid()" title="Save states" aria-label="Save states"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v5"/></svg>Saves</button>
+        <button type="button" id="play-pause-toggle" class="play-pbtn" onclick="window.gnwTogglePause()" title="Pause" aria-label="Pause" aria-pressed="false"><span id="play-pause-ico"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><rect x="2" y="1.5" width="2.6" height="9" rx=".6" fill="currentColor"/><rect x="7.4" y="1.5" width="2.6" height="9" rx=".6" fill="currentColor"/></svg></span><span id="play-pause-lbl">Pause</span></button>
+        <button type="button" id="play-keys-btn" class="play-pbtn" onclick="window.gnwOpenKeys()" title="Controls / keys" aria-label="Show controls"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8.5" y="2" width="7" height="7" rx="1.8"/><rect x="1" y="10.5" width="7" height="7" rx="1.8"/><rect x="8.5" y="10.5" width="7" height="7" rx="1.8"/><rect x="16" y="10.5" width="7" height="7" rx="1.8"/></svg>Keys</button>
+        <button type="button" id="play-rewind-btn" class="play-pbtn" onmousedown="window.gnwStartRewind()" onmouseup="window.gnwStopRewind()" onmouseleave="window.gnwStopRewind()" ontouchstart="event.preventDefault();window.gnwStartRewind()" ontouchend="window.gnwStopRewind()" title="Rewind — hold, or Ctrl+←" aria-label="Rewind (hold)"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M11 6 L11 18 L3 12 Z M21 6 L21 18 L13 12 Z"/></svg>Rewind</button>
+        <button type="button" class="play-pbtn" id="play-mute-btn" onclick="window.gnwToggleMute()" title="Mute / unmute (−)" aria-label="Mute" aria-pressed="false"><span id="play-mute-label">🔊</span>Mute</button>
+      </div>
+      <button type="button" class="pill-back" onclick="window.gnwPillBack()" aria-label="Back to game"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg><span id="play-pill-back-title">Back</span></button>
+    </div>
     <div class="play-device" id="play-device">
-      <div id="play-paused-indicator" style="display:none">PAUSED</div>
-      <!-- VHS-style rewind overlay (scan bands + REW readout), shown by gnwStartRewind -->
-      <div id="play-rewind-overlay" class="play-rewind-scan"><div id="play-rewind-hud">◄◄ REW</div></div>
+      <div id="play-paused-indicator" style="display:none"><span class="paused-badge">PAUSED</span></div>
+      <!-- Rewind timer readout — a prominent top-centre pill (matches Tetris Jr) -->
+      <div id="play-rewind-hud">◄◄ REW</div>
+      <!-- VHS-style rewind scan bands, pinned to the LCD glass, shown by gnwStartRewind -->
+      <div id="play-rewind-overlay" class="play-rewind-scan"></div>
       <div id="play-rewind-overlay-2" class="play-rewind-scan"></div>
       <!-- LCD stack (background/segments/hiding-lines) is drawn FIRST, then
            the device photo itself (play-unit-img) on top -- Unit.png's
@@ -5833,7 +6252,6 @@
       <div id="play-dbg" title="fps = real render rate&#10;f = frame count this session&#10;tw = TW (display-commit) count&#10;cend = CEND (sleep) count&#10;pc = program counter (hex)&#10;halt = CPU asleep (1) / running (0)&#10;r = R-port value (binary, r4 r3 r2 r1)"></div>
     </div>
     <div class="play-controls">
-      <button class="play-btn play-mute-btn" id="play-mute-btn" onclick="window.gnwToggleMute()" title="Mute / unmute (−)" aria-pressed="false"><span class="play-key">−</span> <span id="play-mute-label">🔊</span></button>
       <span class="play-hammer-controls">
       <button class="play-btn"
         onmousedown="gnwPress('left')"  onmouseup="gnwRelease('left')"  onmouseleave="gnwRelease('left')"
@@ -6021,7 +6439,14 @@ const SERIES = [
     long:'The TFT LCD Anniversary line is the first wholly new Game & Watch hardware family Nintendo released after the 1991 Mario the Juggler — a true reboot rather than a re-release. A small full-colour TFT panel sits inside the familiar gold-and-red (HXA-001) or green-and-gold (HXB-001) chassis, driven by a rechargeable Li-ion battery and a USB-C port. Each unit ships with the original-platform games it celebrates, an updated Ball or Vermin re-skin, and an interactive 35th-anniversary clock. Limited production windows turned both units into instant collectibles.' },
   { id:'prototype', name:'Prototype', years:'c. 1989 (unreleased)', color:'var(--prototype)',
     blurb:'The Game & Watch units Nintendo built but never shipped. A category of one — for now.',
-    long:'The Prototype shelf is for fully-realised Game & Watch hardware Nintendo developed but chose not to publish. So far it has a single occupant: Tetris Jr. (TR-66), a Multi Screen unit completed around 1988–1989 and almost certainly cancelled to protect the Game Boy launch, which shipped with Tetris in the box. A lone prototype surfaced publicly in April 2023 when Japanese journalist Hiroyuki Maeda posted photos to Twitter; this is the only known copy in existence.' }
+    long:'The Prototype shelf is for fully-realised Game & Watch hardware Nintendo developed but chose not to publish. So far it has a single occupant: Tetris Jr. (TR-66), a Multi Screen unit completed in 1988 and almost certainly cancelled to protect the Game Boy launch, which shipped with Tetris in the box. A lone prototype surfaced publicly in April 2023 when Japanese journalist Hiroyuki Maeda posted photos to Twitter; this is the only known copy in existence.' },
+  // Pokémon Mini — its own accent, used by the parallel catalogue's tiles/drawer
+  // (seriesById resolves this so the shared components can colour the PM tag).
+  // Deliberately kept OUT of the Game & Watch series dropdown/timeline (see
+  // renderChips) — it isn't a Game & Watch series, just a shared-component accent.
+  { id:'pokemon-mini', name:'Pokémon Mini', years:'2001 – 2002', color:'#ee1515',
+    blurb:'Nintendo\'s smallest cartridge system — a 2001 pocket handheld built entirely around Pokémon.',
+    long:'The Pokémon Mini is the smallest cartridge-based games system Nintendo ever released — a 74 mm handheld with an 8-bit Epson CPU, a 96×64 monochrome screen, rumble, a shock sensor and an infrared link. Ten games shipped for it between 2001 and 2002.' }
 ];
 
 /* === Hardware tab =========================================================
@@ -7641,6 +8066,7 @@ function reissueBallHardwareTabHTML() {
 }
 
 function hardwareTabHTML(d) {
+  if (d.catalogue === 'pokemon-mini') return pmHardwareTabHTML(d);
   if (TFT_TWIN_UNITS[d.id]) return tftHardwareTabHTML(d);
   if (d.id === 'reissue-ball') return reissueBallHardwareTabHTML();
   const info = HARDWARE_DEVICE_INFO[d.id];
@@ -13069,7 +13495,18 @@ const GNW_GAME_KEY_TO_DEVICE = Object.fromEntries(
 // the catalogue image: Super Mario Bros. Special plays on the zoomed panel but
 // shows its full gold flip-lid cabinet on the tile/drawer. Gated in
 // deviceCardHTML (isTileEmu), openDevice (_hasDemo) and showDeviceStage.
-const STATIC_PREVIEW_IDS = new Set([]);   // (was smbspecial) — now runs a LIVE tile/stage preview like every other emulated device
+const STATIC_PREVIEW_IDS = new Set([
+  // Pokémon Mini cartridges are non-emulated, so their drawer's left device
+  // stage is a STATIC image (the shared console) — reusing showDeviceStage's
+  // static-stage path for the same slide-in + 20° tilt as the G&W reveals.
+  'pm-pichu-bros-mini', 'pm-pokemon-breeder-mini', 'pm-pokemon-party-mini',
+  'pm-pokemon-pinball-mini', 'pm-pokemon-puzzle-collection',
+  'pm-pokemon-puzzle-collection-vol-2', 'pm-pokemon-race-mini',
+  'pm-pokemon-shock-tetris', 'pm-pokemon-zany-cards', 'pm-togepis-great-adventure',
+  // (Tetris Jr. TR-66 used to be a STATIC cabinet image here; it now runs our
+  //  LIVE clean-room device demo — silent auto-play + clock — in the tile and
+  //  drawer via an iframe of play/tetrisjr/, so it's no longer a static preview.)
+]);   // (was smbspecial + tetris-jr) — every remaining title runs a LIVE tile/stage preview
 
 const GAME_SLUGS = {
   'silver-ball':                'nintendo-ball',
@@ -13129,7 +13566,9 @@ const GAME_SLUGS = {
   'crystal-balloon-fight':      'nintendo-balloonfight-crystalscreen',
   'other-super-mario-bros-special': 'nintendo-super-mario-bros-special-edition',
   'multiscreen-zelda':          'nintendo-zelda',
-  'prototype-tetris-jr':        'nintendo-tetris-junior',
+  // Tetris Jr. (TR-66) is the last un-built unit — no ROM/emulator and, by
+  // design, no Play button. Its RetroFab slug is intentionally omitted so the
+  // tile/drawer show it as a purely static reskinned device.
 };
 
 /* Box art images per device. Values are IMG{} keys (base64 in images_b64.json).
@@ -13361,6 +13800,19 @@ const BOX_ART_3D_IMAGES = {
   'reissue-zelda':                     'ReissueZeldaBox',
   // Tetris Jr. — single known image, used everywhere.
   'prototype-tetris-jr':               'PrototypeTetrisJr1',
+  // Pokémon Mini — the only box art we have for these titles (portrait box
+  // thumbnails). Keys resolve in the load-time images_pm_b64.json (IMG map),
+  // exactly like the G&W gnw_*.png keys resolve in images_b64.json.
+  'pm-pichu-bros-mini':                'pm_pichu_box.png',
+  'pm-pokemon-breeder-mini':           'pm_breeder_box.png',
+  'pm-pokemon-party-mini':             'pm_party_box.png',
+  'pm-pokemon-pinball-mini':           'pm_pinball_box.png',
+  'pm-pokemon-puzzle-collection':      'pm_puzzle_box.png',
+  'pm-pokemon-puzzle-collection-vol-2':'pm_puzzle2_box.png',
+  'pm-pokemon-race-mini':              'pm_race_box.png',
+  'pm-pokemon-shock-tetris':           'pm_tetris_box.png',
+  'pm-pokemon-zany-cards':             'pm_zany_box.png',
+  'pm-togepis-great-adventure':        'pm_togepi_box.png',
 };
 
 const DEVICE_IMAGES = {
@@ -13427,7 +13879,7 @@ const DEVICE_IMAGES = {
   'reissue-ball': ['SilverBall1','SilverBall2'],
   'reissue-super-mario-bros': ['ReissueSuperMarioBros1','ReissueSuperMarioBros2','ReissueSuperMarioBros3'],
   'reissue-zelda': ['ReissueZelda1'],
-  'prototype-tetris-jr': ['PrototypeTetrisJr1']
+  'prototype-tetris-jr': ['PrototypeTetrisJrArt.webp','PrototypeTetrisJr1','PrototypeTetrisJrBack.webp']
 };
 
 // =====================================================================
@@ -14068,12 +14520,598 @@ const DEVICES = [
     facts:{ Released:'12 November 2021', Developer:'Nintendo', Players:'1', Display:'2.36" colour TFT LCD', Power:'Rechargeable Li-ion via USB-C', Notes:'35th-anniversary commemorative; production ended 2022.' } },
 
   // PROTOTYPE
-  { id:'prototype-tetris-jr', name:'Tetris Jr.', series:'prototype', model:'TR-66', released:'1989', img:'PrototypeTetrisJr1',
-    overview:`A Multi Screen Game & Watch Nintendo developed but never released. Tetris Jr. (TR-66) was prepared around 1988–1989, immediately after Nintendo licensed Tetris for handheld release, and is almost certainly the only fully-engineered Game & Watch Nintendo ever shelved. A single working prototype is known to exist.`,
-    gameplay:`Mechanically idiosyncratic. Where conventional Tetris moves the active piece left and right, Tetris Jr. holds the piece in a fixed column and shifts the entire stack beneath it — a curious workaround for the LCD segment count, since the playfield is hard-etched into the screen rather than rendered. Game A and Game B vary speed and difficulty in the usual G&W pattern.`,
+  // img is the reskinned full-cabinet render (PrototypeTetrisJrArt.webp — Safe
+  // Buster's own Unit.png retouched: Tetris Jr. logo, etched-block LCD screens,
+  // red D-pad + black button, guards removed) so the tile + drawer stage float
+  // the device like every other unit; the genuine one-of-one prototype photo
+  // (PrototypeTetrisJr1) stays in the gallery/lightbox via DEVICE_IMAGES.
+  { id:'prototype-tetris-jr', name:'Tetris Jr.', series:'prototype', model:'TR-66', released:'1988', img:'PrototypeTetrisJrArt.webp',
+    overview:`A Multi Screen Game & Watch Nintendo developed but never released. Tetris Jr. (TR-66) was prepared in 1988, immediately after Nintendo licensed Tetris for handheld release, and is almost certainly the only fully-engineered Game & Watch Nintendo ever shelved. A single working prototype is known to exist. Tellingly, it was built inside a repurposed Safe Buster shell — the prototype's back label still carries Safe Buster's own details: MODEL NO. JB-63, © Nintendo 1988, U.S. Patent Nos. 4,438,926 and 4,398,804, MADE IN JAPAN. The moulded 1988 copyright is what dates the unit.`,
+    gameplay:`Mechanically idiosyncratic. Where conventional Tetris moves the active piece left and right, Tetris Jr. holds the piece in a fixed column and shifts the entire stack beneath it — a curious workaround for the LCD segment count, since the playfield is hard-etched into the screen rather than rendered. Game A and Game B vary speed and difficulty in the usual G&W pattern. Two details set the prototype apart visually: the screen carries a colour filter — lending the LCD tinted colour zones rather than the flat monochrome grey of a standard Game & Watch — and a clown is among the characters printed across the two screens, an odd cast member for the line.`,
     legacy:`Cancelled in all likelihood to protect the Game Boy launch — the Game Boy shipped in 1989 with Tetris bundled, and a portable Tetris G&W on the same shelf would have undercut it. The unit then disappeared from the public record for thirty-five years. In April 2023, Japanese journalist Hiroyuki Maeda posted photographs of a working prototype on Twitter, marking the first time anyone outside Nintendo had seen the device. To this day only that single unit is known.`,
     games:[{name:'Game A',desc:'Standard cadence.'},{name:'Game B',desc:'Faster falling stacks.'}],
-    facts:{ Released:'Unreleased (prototype c. 1988–1989)', Developer:'Nintendo R&D1', Players:'1', 'Game Modes':'Game A, Game B', Display:'Multi Screen (clamshell, two LCDs)', Notes:'Only one prototype unit known; surfaced publicly in April 2023 via journalist Hiroyuki Maeda.' } }
+    facts:{ Released:'Unreleased (prototype c. 1988–1989)', Developer:'Nintendo R&D1', Players:'1', 'Game Modes':'Game A, Game B', Display:'Multi Screen (clamshell, two LCDs, colour filter)', Notes:'Only one prototype unit known; surfaced publicly in April 2023 via journalist Hiroyuki Maeda.' } }
+];
+
+/* ============================================================================
+ * Pokémon Mini — a PARALLEL catalogue (Nintendo's 2001–2002 handheld, the
+ * smallest cartridge system it ever made). These reuse the exact same
+ * device-card / masonry / collection-star components as the Game & Watch
+ * catalogue above. Two markers do the routing:
+ *   catalogue:'pokemon-mini' → openDevice()/hardwareTabHTML() render the simpler
+ *                              two-tab (Info + Hardware) drawer, and the tile
+ *                              placeholder/meta tolerate the missing model.
+ *   series:'pokemon-mini'    → seriesById() resolves their coloured tag/accent.
+ * No model number, no built-in emulator, no manuals — they're simply absent from
+ * GNW_EMULATED_GAMES / GAME_SLUGS / MANUALS so all of that stays off.
+ * `released` is the EARLIEST regional release (drives the tile year + date sort);
+ * every region is listed in the drawer's Releases table. ids are unique (pm-…).
+ * ========================================================================== */
+const POKEMON_MINI = [
+  { id:'pm-pichu-bros-mini', catalogue:'pokemon-mini', series:'pokemon-mini',
+    name:'Pichu Bros. Mini', developer:'Denyusha Co., Ltd.', genre:'Mini Games',
+    players:'Up to 10', cartridge:'—', released:'2000-08-09',
+    features:['Infrared','Rumble','Shock Sensor'],
+    regions:[{region:'Japan', date:'2000-08-09', serial:'MIN-MBRJ-JPN'}],
+    description:`A collection of several mini games, in much the same spirit as Pokémon Party Mini.`,
+    additional:`The listed 2000 date predates the Pokémon Mini's 2001 launch — likely a source quirk rather than a true pre-release.`,
+    promo:`` },
+
+  { id:'pm-pokemon-breeder-mini', catalogue:'pokemon-mini', series:'pokemon-mini',
+    name:'Pokémon Sodateyasan Mini', developer:'Jupiter Corporation', genre:'Simulation',
+    players:'1', cartridge:'4 Mbit', released:'2002-12-14',
+    features:['Backup Memory','Clock','Linking','Rumble','Shock Sensor'],
+    regions:[{region:'Japan', date:'2002-12-14', serial:'MIN-MSDJ-JPN'}],
+    description:`A Tamagotchi-like life simulation in which you care for a young Pokémon (Mudkip, for example) — feeding it, playing with it, and watching it grow over time.`,
+    additional:`A Japan-only release — never sold in the West, and the last game published for the Pokémon mini. Often referred to by the fan-translated name "Pokémon Breeder Mini".`,
+    promo:`` },
+
+  { id:'pm-pokemon-party-mini', catalogue:'pokemon-mini', series:'pokemon-mini',
+    name:'Pokémon Party Mini', developer:'Denyusha', genre:'Mini Games',
+    players:'1–6', cartridge:'—', released:'2001-11-16',
+    features:['Backup Memory','Clock','Infrared','Rumble','Shock Sensor'],
+    regions:[
+      {region:'USA', date:'2001-11-16', serial:'MIN-MPTE-USA'},
+      {region:'Japan', date:'2001-12-04', serial:'MIN-MPTJ-JPN'},
+      {region:'Europe', date:'2002-03-14', serial:'MIN-MPTP-EUR'},
+      {region:'Australia', date:'', serial:'MIN-MPTE-AUS'}],
+    description:`A collection of minigames — Hitmonchan's Boxing, Pikachu's Rocket Start, Bellossom's Dance, Chansey's Dribble, Slowking's Judge, Sneasel's Fakeout, Battlefield, and Celebi's Clock.`,
+    additional:`Bundled with the system at launch. An unused minigame, "Snorlax's Lunch Time", was later found inside Pokémon Channel on the GameCube.`,
+    promo:`` },
+
+  { id:'pm-pokemon-pinball-mini', catalogue:'pokemon-mini', series:'pokemon-mini',
+    name:'Pokémon Pinball Mini', developer:'Jupiter', genre:'Pinball',
+    players:'1', cartridge:'4 Mbit', released:'2001-11-16',
+    features:['Rumble'],
+    regions:[
+      {region:'USA', date:'2001-11-16', serial:'MIN-MPBE-USA'},
+      {region:'Japan', date:'2001-12-04', serial:'MIN-MPBJ-JPN'},
+      {region:'Europe', date:'2002-03-16', serial:'MIN-MPBE-EUR'},
+      {region:'Australia', date:'', serial:'MIN-MPBE-AUS'}],
+    description:`A pinball game in which a Diglett or Pikachu acts as the 'bumping' mechanism keeping the ball in play.`,
+    additional:``,
+    promo:`Shoot balls into the pockets with the 'Pokémon Plunger'. Three modes — Quest (70 stages), Time Attack (10) and Score Attack (10) — and a "Catching Pokémon Stage" that lets you catch Pokémon.` },
+
+  { id:'pm-pokemon-puzzle-collection', catalogue:'pokemon-mini', series:'pokemon-mini',
+    name:'Pokémon Puzzle Collection', developer:'Jupiter', genre:'Puzzle',
+    players:'1', cartridge:'4 Mbit', released:'2001-12-14',
+    features:['Backup Memory','Clock','Rumble'],
+    regions:[
+      {region:'Japan', date:'2001-12-14', serial:'MIN-MPZJ-JPN'},
+      {region:'Europe', date:'2002-03-14', serial:'—'},
+      {region:'USA', date:'', serial:'MIN-MPZE-USA'},
+      {region:'Australia', date:'', serial:'MIN-MPZE-AUS'},
+      {region:'France', date:'2002', serial:'—'},
+      {region:'Germany', date:'2002', serial:'MIN-MPZD-NOE'}],
+    description:`A collection of puzzle games — Shadow Puzzle, Motion Puzzle, Escape, and a bonus Power On, a Pipe-Dream-like flow game.`,
+    additional:``,
+    promo:`` },
+
+  { id:'pm-pokemon-puzzle-collection-vol-2', catalogue:'pokemon-mini', series:'pokemon-mini',
+    name:'Pokémon Puzzle Col Vol. 2', developer:'Jupiter', genre:'Puzzle',
+    players:'1', cartridge:'4 Mbit', released:'2002-04-26',
+    features:['Backup Memory','Clock','Rumble'],
+    regions:[{region:'Japan', date:'2002-04-26', serial:'MIN-MZ2J-JPN'}],
+    description:`Like the first collection, but with a different set of games and 80 new puzzles.`,
+    additional:`An unreleased US version was ESRB-rated "Everyone".`,
+    promo:`` },
+
+  { id:'pm-pokemon-race-mini', catalogue:'pokemon-mini', series:'pokemon-mini',
+    name:'Pokémon Race Mini', developer:'Jupiter', genre:'Racing',
+    players:'1–2', cartridge:'4 Mbit', released:'2002-07-19',
+    features:['Backup Memory','Clock','Infrared','Rumble'],
+    regions:[{region:'Japan', date:'2002-07-19', serial:'MIN-MRCJ-JPN'}],
+    description:`A platform racing competition in which you control a Pikachu against other Pokémon.`,
+    additional:``,
+    promo:`` },
+
+  { id:'pm-pokemon-shock-tetris', catalogue:'pokemon-mini', series:'pokemon-mini',
+    name:'Pokémon Shock Tetris', developer:'Nintendo Co., Ltd.', genre:'Puzzle',
+    players:'1', cartridge:'—', released:'2002-03-21',
+    features:[],
+    regions:[
+      {region:'Japan', date:'2002-03-21', serial:'MIN-MSTJ-JPN'},
+      {region:'Europe', date:'', serial:'MIN-MSTP-EUR'}],
+    description:`A Pokémon-themed take on Tetris. Released in Europe simply as "Pokémon Tetris".`,
+    additional:`An unreleased US version, "Pokémon Mini Shock Tetris", was ESRB-rated "Everyone".`,
+    promo:`` },
+
+  { id:'pm-pokemon-zany-cards', catalogue:'pokemon-mini', series:'pokemon-mini',
+    name:'Pokémon Zany Cards', developer:'Denyusha', genre:'Strategy',
+    players:'1–5', cartridge:'4 Mbit', released:'2001-11-16',
+    features:['Infrared','Rumble'],
+    regions:[
+      {region:'USA', date:'2001-11-16', serial:'MIN-MACE-USA'},
+      {region:'Australia', date:'2001-11-16', serial:'MIN-MACE-AUS'},
+      {region:'Japan', date:'2001-12-04', serial:'MIN-MACJ-JPN'},
+      {region:'France', date:'2002', serial:'MIN-P-MACF'},
+      {region:'Germany', date:'2002', serial:'MIN-MACD-NOE'},
+      {region:'United Kingdom', date:'', serial:'—'}],
+    description:`A small collection of four card games played with Pokémon-themed cards. Released in Japan as "Pokémon Anime Card Daisakusen".`,
+    additional:``,
+    promo:`` },
+
+  { id:'pm-togepis-great-adventure', catalogue:'pokemon-mini', series:'pokemon-mini',
+    name:`Togepi's Great Adventure`, developer:'Jupiter', genre:'Adventure',
+    players:'1', cartridge:'4 Mbit', released:'2002-10-18',
+    features:['Backup Memory','Clock','Infrared','Rumble','Shock Sensor'],
+    regions:[{region:'Japan', date:'2002-10-18', serial:'MIN-MTAJ-JPN'}],
+    description:`An adventure game in which you guide Togepi out of a tower while avoiding traps. Released in Japan as "Togepi no Dai Bouken".`,
+    additional:``,
+    promo:`` },
+];
+
+// Both catalogues share ONE localStorage collection key, so id/collection
+// lookups (openDevice, the ★ count, the vault) must resolve across both. Every
+// PM id is unique (pm-… prefix), so the merged list never collides with a G&W id.
+const ALL_DEVICES = [...DEVICES, ...POKEMON_MINI];
+// PM console images (translucent cut-outs, transparent bg) now live in the
+// load-time images_pm_b64.json (keys PokemonMiniConsole.png = blue,
+// PokemonMiniConsoleGreen.png = green), merged into IMG at boot exactly like the
+// box art and every G&W hero. Each PM game is randomly assigned one of the pool
+// colours by pmConsoleKey() (cached per id); d.img keeps a valid default key so
+// any incidental fallback still resolves to a real image.
+POKEMON_MINI.forEach(d => { d.img = "PokemonMiniConsole.png"; });
+
+// Console-colour pool + per-device cache. Add the third colour (pink) here as a
+// one-liner once its image is in images_pm_b64.json — nothing else changes.
+const PM_CONSOLE_COLORS = ['PokemonMiniConsole.png', 'PokemonMiniConsoleGreen.png', 'PokemonMiniConsolePurple.png'];
+const _pmConsoleColorCache = new Map(); // device id -> chosen console key (assigned once)
+// Assign each PM device a random console colour on first access and cache it, so
+// the tile and its drawer (and every re-render / re-sort / display-mode + view
+// toggle) all show the SAME colour for the life of the session. Re-randomises on
+// a full page reload (per-session), which is intended (gives variety).
+function pmConsoleKey(d) {
+  if (!_pmConsoleColorCache.has(d.id)) {
+    _pmConsoleColorCache.set(d.id, PM_CONSOLE_COLORS[Math.floor(Math.random() * PM_CONSOLE_COLORS.length)]);
+  }
+  return _pmConsoleColorCache.get(d.id);
+}
+
+/* ===========================================================================
+   Pokémon mini — PLAYABLE integration
+   ---------------------------------------------------------------------------
+   The clean-room PokemonMiniDevice module (play/pokemini/pm-embed.js + its
+   wasm/worklet) is OUR distributable code, like gnw.js. The ROMs + shared BIOS
+   are NOT distributed: they come from firmware/pokemini_roms.json (built locally
+   by firmware/build_gnw_roms.ps1) or, failing that, a user content pack in
+   IndexedDB (Settings → Content). Because each PM ROM is ~512 KB, that JSON is
+   LAZY-loaded on first launch (never at boot — the classic emulators must not
+   wait on it) and cached in memory once.
+   =========================================================================== */
+// Tile console-image key -> the pm-embed self-made bezel colour name, so the
+// play bezel's tint matches the tile the user clicked (also used as a fallback
+// if the console artwork image is unavailable).
+const PM_CONSOLE_COLOR_NAME = {
+  'PokemonMiniConsole.png': 'blue',
+  'PokemonMiniConsoleGreen.png': 'green',
+  'PokemonMiniConsolePurple.png': 'purple',
+};
+
+let _pmRomsReady = null;      // Promise for the one-time pokemini_roms.json fetch
+let _pmRomsCache = null;      // parsed { <pm-id>: b64, bios: b64 } once resolved
+let _pmFileAvailable = null;  // null=unprobed, true/false: is pokemini_roms.json served?
+let _pmPackContent = null;    // PM content from a loaded content pack (IndexedDB), if any
+let _pmProbed = false;
+let _pmActiveDevice = null;   // the currently-mounted PokemonMiniDevice (one at a time)
+let _PMDeviceClass = null;    // lazily dynamic-import()ed ES module class
+
+// HYBRID BOOT: every PM title renders its live BIOS slot-in animation (~2 s), then
+// snaps to its MAIN screen via a pre-captured boot state — no clock/setup screen,
+// no ~25–53 s realtime wait. The demo-scripts (play/pokemini/demo-scripts.json)
+// are NO LONGER applied live; they're kept only for the capture fallback (they're
+// how the shipped states were captured). The demo table's title ids differ from
+// our device ids, so map them (same map keys pm-states.json):
+const PM_DEMO_SCRIPT_KEY = {
+  'pm-pichu-bros-mini': 'pichu-bros',
+  'pm-pokemon-breeder-mini': 'pokemon-breeder',        // WIP: reaches name-entry (script still being derived)
+  'pm-pokemon-party-mini': 'pokemon-party',
+  'pm-pokemon-pinball-mini': 'pokemon-pinball',
+  'pm-pokemon-puzzle-collection': 'pokemon-puzzle',
+  'pm-pokemon-puzzle-collection-vol-2': 'pokemon-puzzle-2',
+  'pm-pokemon-race-mini': 'pokemon-race',
+  'pm-pokemon-shock-tetris': 'pokemon-tetris',
+  'pm-pokemon-zany-cards': 'pokemon-zany-cards',
+  'pm-togepis-great-adventure': 'togepi',
+};
+let _pmDemoScriptsPromise = null, _pmDemoScripts = null;
+function ensurePmDemoScripts() {
+  if (_pmDemoScriptsPromise) return _pmDemoScriptsPromise;
+  _pmDemoScriptsPromise = fetch('play/pokemini/demo-scripts.json')
+    .then(r => r.ok ? r.json() : {})
+    .then(j => { _pmDemoScripts = j || {}; return _pmDemoScripts; })
+    .catch(() => { _pmDemoScripts = {}; return _pmDemoScripts; });
+  return _pmDemoScriptsPromise;
+}
+// The boot macro for a title (array of {frame,keys,hold}), or null. Zany Cards
+// has an empty script (no setup screen) — treated as "no macro needed".
+function pmDemoScriptFor(id) {
+  const k = PM_DEMO_SCRIPT_KEY[id];
+  const entry = _pmDemoScripts && k && _pmDemoScripts[k];
+  return (entry && entry.script && entry.script.length) ? entry.script : null;
+}
+
+// Pre-captured per-title MAIN-SCREEN boot states (play/pokemini/pm-states.json):
+// titleId -> { rom, lands, size, state:base64 }. Loaded once, cached. Rendering
+// the live slot-in animation to this PRC frame, then loadBootState(), lands the
+// game on its main screen instantly. 66 is the measured boundary — the BIOS
+// slot-in ends ~frame 68 and the first setup screen appears ~frame 74, so 66
+// shows the full animation with no clock-screen flash.
+const PM_SLOTIN_FRAMES = 66;
+let _pmStatesPromise = null, _pmStates = null;
+function ensurePmStates() {
+  if (_pmStatesPromise) return _pmStatesPromise;
+  _pmStatesPromise = fetch('play/pokemini/pm-states.json')
+    .then(r => r.ok ? r.json() : {})
+    .then(j => { _pmStates = j || {}; return _pmStates; })
+    .catch(() => { _pmStates = {}; return _pmStates; });
+  return _pmStatesPromise;
+}
+// Base64 boot-state for a title, or null (then the caller falls back to a live
+// capture via the demoScript, or just boots normally).
+function pmBootStateB64For(id) {
+  const k = PM_DEMO_SCRIPT_KEY[id];
+  const entry = _pmStates && k && _pmStates[k];
+  return (entry && entry.state) || null;
+}
+
+function _pmB64ToU8(b64) {
+  const bin = atob(b64), u8 = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+  return u8;
+}
+
+// Fetch pokemini_roms.json ONCE, cache in memory. On 404 / error (code-only
+// distribution), fall back to a loaded content pack. Never blocks classic boot —
+// only called on a PM launch or the deferred availability probe.
+function ensurePmRoms() {
+  if (_pmRomsReady) return _pmRomsReady;
+  _pmRomsReady = fetch('firmware/pokemini_roms.json')
+    .then(r => { if (!r.ok) throw new Error('pokemini_roms.json HTTP ' + r.status); return r.json(); })
+    .then(j => { _pmRomsCache = j; _pmFileAvailable = true; return j; })
+    .catch(() => (window.__GNW_PACK ? window.__GNW_PACK.ready : Promise.resolve()).then(() => {
+      const pm = window.__GNW_PACK && window.__GNW_PACK.pokemini();
+      _pmRomsCache = pm || null;
+      return _pmRomsCache;
+    }));
+  return _pmRomsReady;
+}
+
+// Cheap, deferred (post-boot, idle) availability probe so tiles/drawers can show
+// the Play badge only when PM content is actually present. It checks the loaded
+// content pack (in-memory) and probes for pokemini_roms.json WITHOUT downloading
+// its multi-MB body (headers only, then cancel the stream).
+function pmProbeAvailability() {
+  if (_pmProbed) return;
+  _pmProbed = true;
+  const packDone = (window.__GNW_PACK ? window.__GNW_PACK.ready : Promise.resolve()).then(() => {
+    const pm = window.__GNW_PACK && window.__GNW_PACK.pokemini();
+    if (pm) _pmPackContent = pm;
+  }).catch(() => {});
+  const fileDone = fetch('firmware/pokemini_roms.json')
+    .then(r => { const ok = r.ok; try { if (r.body) r.body.cancel(); } catch (e) {} _pmFileAvailable = ok; })
+    .catch(() => { _pmFileAvailable = false; });
+  Promise.all([packDone, fileDone]).then(() => {
+    // Reveal (or hide) PM Play badges now that availability is known. PM tiles
+    // are static console images (no live preview), so a re-render is cheap+safe.
+    const grid = document.getElementById('pm-device-grid');
+    if (grid && grid.children.length && typeof renderPM === 'function') renderPM();
+    // If a PM drawer is open, refresh it so its Play button appears.
+    if (_openDeviceId && String(_openDeviceId).indexOf('pm-') === 0) {
+      const d = ALL_DEVICES.find(x => x.id === _openDeviceId);
+      if (d && typeof openPMDevice === 'function') openPMDevice(d);
+    }
+  });
+}
+
+// The built pokemini_roms.json is all-or-nothing (all 10 ROMs + BIOS written
+// together), so file-present ⇒ everything present. A content pack may be partial,
+// so it's checked per-id. One BIOS covers every PM game.
+function pmBiosAvailable() {
+  if (_pmFileAvailable === true) return true;
+  return !!(_pmPackContent && _pmPackContent.bios);
+}
+function pmRomAvailable(id) {
+  if (_pmFileAvailable === true) return true;
+  return !!(_pmPackContent && _pmPackContent[id]);
+}
+// A PM game shows Play only when its ROM AND the shared BIOS are available.
+function pmPlayable(d) {
+  return !!(d && d.catalogue === 'pokemon-mini' && pmBiosAvailable() && pmRomAvailable(d.id));
+}
+
+function pmLoadModule() {
+  if (_PMDeviceClass) return Promise.resolve(_PMDeviceClass);
+  return import('./play/pokemini/pm-embed.js').then(m => { _PMDeviceClass = m.PokemonMiniDevice; return _PMDeviceClass; });
+}
+
+function _pmTeardownActive() {
+  if (_pmActiveDevice) { try { _pmActiveDevice.teardown(); } catch (e) {} _pmActiveDevice = null; }
+}
+
+// Control legend for the PM play window. Keypad: A=Z, B=X, C=C (the core's A/C
+// bit-order was fixed in the re-synced wasm, so these are now correct in play).
+function _pmLegendHTML(d) {
+  // The old inline legend is replaced by the Controls / keys screen (key icon in
+  // the modal head) — mirrors the Game & Watch play window.
+  return '';
+}
+
+// Hybrid boot for the PLAY path: let the module render the live slot-in animation,
+// then at ~PM_SLOTIN_FRAMES snap to the main screen via the pre-captured boot state
+// (module.loadBootState re-seeds the RTC to host time + restores the player's own
+// EEPROM save). If no shipped state (or a load throws), fall back to a live capture
+// (captureBootState fast-runs the demoScript). If neither is possible, the game just
+// keeps booting normally.
+function _pmSnapToMainScreen(dev, stateB64) {
+  const doSnap = function () {
+    if (!dev || !dev.exp || dev !== _pmActiveDevice) return;   // torn down / superseded
+    const finish = function (blob) {
+      if (!blob) return;                                       // nothing to load: leave live boot running
+      Promise.resolve(dev.loadBootState(blob)).catch(function (e) { console.warn('[pm] boot-state load failed:', e); });
+    };
+    try {
+      if (stateB64) { finish(stateB64); return; }
+      finish(dev.captureBootState ? dev.captureBootState() : null);   // no shipped state -> capture
+    } catch (e) {
+      console.warn('[pm] boot-state load failed, capturing:', e);
+      try { finish(dev.captureBootState ? dev.captureBootState() : null); } catch (e2) { /* keep live boot */ }
+    }
+  };
+  const waitFrames = function () {
+    if (!dev || !dev.exp || dev !== _pmActiveDevice) return;
+    if (Number(dev.exp.pm_prc_frame_count()) >= PM_SLOTIN_FRAMES) { doSnap(); return; }
+    requestAnimationFrame(waitFrames);
+  };
+  requestAnimationFrame(waitFrames);
+}
+
+// Launch a Pokémon mini game: open the play overlay and mount PokemonMiniDevice
+// with the tile-matched colour + console bezel art. Parallel to openTftPlay().
+// Every unit shows its ~2 s BIOS slot-in animation then snaps to its MAIN screen
+// (Peter's rule) via a pre-captured boot state; the RTC is re-seeded to host time
+// and the player's own EEPROM save wins. Normal play/input continues after.
+// ---- Multi-language ROM variants ----------------------------------------
+// Pokémon mini titles are region/language-specific (unlike G&W, which were
+// language-agnostic). The importer emits pokemini_roms.json as
+// {device-id:{langKey:base64}} when more than one language dump is present;
+// older builds emit a flat {device-id:base64}. Both are accepted. A language
+// picker appears on the play screen ONLY when a game has >1 variant loaded, so
+// someone who owns a regional ROM other than ours can still play it.
+const PM_LANG_LABELS = {
+  'default':'Default', 'en':'English', 'en-fan':'English (fan translation)',
+  'en-us':'English (USA)', 'en-eu':'English (EU)',
+  'fr':'Français', 'de':'Deutsch', 'ja':'日本語',
+};
+const PM_LANG_ORDER = ['default','en','en-fan','en-us','en-eu','fr','de','ja'];
+let _pmCurGame = null, _pmCurVariants = null, _pmCurBios = null;
+
+/** Normalise a manifest entry to a {langKey:base64} map (flat string → 'default'). */
+function pmRomVariants(roms, id) {
+  const e = roms && roms[id];
+  if (!e) return null;
+  if (typeof e === 'string') return { 'default': e };
+  const out = {};
+  for (const k in e) if (typeof e[k] === 'string') out[k] = e[k];
+  return Object.keys(out).length ? out : null;
+}
+/** Language keys in display order (English-first, Japanese last). */
+function pmLangsSorted(keys) {
+  return keys.slice().sort((a, b) => {
+    const ia = PM_LANG_ORDER.indexOf(a), ib = PM_LANG_ORDER.indexOf(b);
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.localeCompare(b);
+  });
+}
+/** The language selected by default (English preferred; the fan-translation
+ *  counts as English so those games default to English with 日本語 offered). */
+function pmDefaultLang(variants) { return pmLangsSorted(Object.keys(variants))[0]; }
+
+function openPmPlay(deviceId, event) {
+  if (event) { event.stopPropagation(); event.preventDefault(); }
+  const d = ALL_DEVICES.find(x => x.id === deviceId);
+  if (!d || d.catalogue !== 'pokemon-mini') return;
+  const title = document.getElementById('pm-play-title');
+  if (title) title.textContent = d.name;
+  const legend = document.getElementById('pm-play-legend');
+  if (legend) legend.innerHTML = _pmLegendHTML(d);
+
+  const launch = function () {
+    pauseCollectionTiles();
+    _pmTeardownActive();
+    const mount = document.getElementById('pm-play-mount');
+    const batt  = document.getElementById('pm-play-batteries');
+    const body  = document.getElementById('pm-play-body');
+    const showBatteries = function () {
+      if (body) body.style.display = 'none';
+      if (batt) batt.style.display = 'block';
+      if (mount) mount.innerHTML = '';
+    };
+    if (batt) batt.style.display = 'none';
+    if (body) body.style.display = '';
+    if (mount) mount.innerHTML = '<div class="pm-play-loading">Loading…</div>';
+    openOverlay('pm-play-overlay');
+
+    Promise.all([ensurePmRoms(), pmLoadModule(), ensurePmDemoScripts(), ensurePmStates()]).then(function (r) {
+      const roms = r[0];
+      const variants = pmRomVariants(roms, d.id);
+      const biosB64 = roms && roms.bios;
+      if (!variants || !biosB64) { showBatteries(); return; }   // "Batteries not included"
+      // Remember what we're playing so the language picker can re-mount.
+      _pmCurGame = d; _pmCurVariants = variants; _pmCurBios = biosB64;
+      // Populate + reveal the language picker only when >1 language is loaded.
+      const langs = pmLangsSorted(Object.keys(variants));
+      const sel = document.getElementById('pm-play-lang');
+      if (sel) {
+        sel.innerHTML = langs.map(function (l) {
+          return '<option value="' + l + '">' + (PM_LANG_LABELS[l] || l) + '</option>';
+        }).join('');
+        sel.value = pmDefaultLang(variants);
+        sel.style.display = (langs.length > 1) ? '' : 'none';
+      }
+      _pmLaunchRom(pmDefaultLang(variants));
+    }).catch(function (e) {
+      console.error('[pm] launch failed:', e);
+      showBatteries();
+    });
+  };
+
+  // If launched from an open drawer, let it slide out first (mirror openTftPlay).
+  const drawer = document.getElementById('device-overlay');
+  const dm = document.getElementById('device-modal');
+  if (drawer && drawer.classList.contains('open')) {
+    closeOverlay('device-overlay');
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce || !dm) { launch(); return; }
+    let launched = false;
+    const go = () => { if (launched) return; launched = true; dm.removeEventListener('animationend', onEnd); launch(); };
+    const onEnd = (e) => { if (e.target === dm && (e.animationName === 'device-drawer-hide' || e.animationName === 'device-drawer-hide-fast')) go(); };
+    dm.addEventListener('animationend', onEnd);
+    setTimeout(go, 1850);
+  } else {
+    launch();
+  }
+}
+window.openPmPlay = openPmPlay;
+window.closePmPlay = function () { if (window.pmCloseKeys) window.pmCloseKeys(); _pmTeardownActive(); closeOverlay('pm-play-overlay'); };
+
+// Mount (or re-mount) the current game with the ROM for `lang`. Shared by the
+// initial launch and the language picker — the only thing that changes is which
+// variant's ROM bytes go to the emulator. Everything else (bezel, save slot,
+// snap-to-main-screen) is identical.
+function _pmLaunchRom(lang) {
+  const d = _pmCurGame, variants = _pmCurVariants, biosB64 = _pmCurBios;
+  if (!d || !variants || !biosB64 || !_PMDeviceClass) return;
+  const romB64 = variants[lang] || variants[pmDefaultLang(variants)];
+  if (!romB64) return;
+  _pmTeardownActive();
+  const mount = document.getElementById('pm-play-mount');
+  if (mount) mount.innerHTML = '';
+  const consoleKey = pmConsoleKey(d);
+  const stateB64 = pmBootStateB64For(d.id);                 // pre-captured main-screen state (may be null)
+  const dev = new _PMDeviceClass(mount, {
+    scale: 2.4,
+    color: PM_CONSOLE_COLOR_NAME[consoleKey] || 'blue',     // tile-matched tint (fallback if art missing)
+    bezelImage: imgSrc(consoleKey),                         // the same console artwork the tile shows
+    saveKey: d.id,                                          // per-title EEPROM (stable, id-keyed) — player's save wins
+    demoScript: pmDemoScriptFor(d.id),                      // kept ONLY for the capture fallback; not applied live
+    wasmUrl: 'play/pokemini/pokemini.wasm',
+    workletUrl: 'play/pokemini/audio-worklet.js',
+  });
+  dev.mount({ bios: _pmB64ToU8(biosB64), rom: _pmB64ToU8(romB64) }).then(function () {
+    _pmActiveDevice = dev;
+    if (dev.root && dev.root.focus) dev.root.focus();       // so keyboard input works immediately
+    _pmSnapToMainScreen(dev, stateB64);                     // slot-in animation -> main screen
+  }).catch(function (e) {
+    console.error('[pm] mount failed:', e);
+    if (mount) mount.innerHTML = '<div class="pm-play-loading">Could not start this game.</div>';
+  });
+}
+
+// Language picker → reload the same game in the chosen language.
+function pmSwitchLang(lang) {
+  const mount = document.getElementById('pm-play-mount');
+  if (mount) mount.innerHTML = '<div class="pm-play-loading">Loading…</div>';
+  setTimeout(function () { _pmLaunchRom(lang); }, 0);        // let "Loading…" paint before the heavy re-mount
+}
+window.pmSwitchLang = pmSwitchLang;
+
+// ---- Pokémon mini Controls / keys screen --------------------------------
+// PM has a single fixed control scheme (unlike the per-device G&W hotspots), so
+// the diagram is fixed: a D-pad (arrow keys) plus the A / B / C face buttons,
+// with Power / Shake / Rewind as the extra keys on the right. Same look + Back
+// pattern as the G&W Controls screen.
+function pmRenderKeys() {
+  const panel = document.getElementById('pm-keys-panel'); if (!panel) return;
+  const dpad = '<div class="pmk-dpad" data-k="arrowup,arrowdown,arrowleft,arrowright" style="left:2%;top:22%;width:40%;height:56%">'
+    + '<svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M34 3 H66 V34 H97 V66 H66 V97 H34 V66 H3 V34 H34 Z" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/></svg>'
+    + '<span class="dk dk-up">↑</span><span class="dk dk-down">↓</span><span class="dk dk-left">←</span><span class="dk dk-right">→</span>'
+    + '</div>';
+  const b = (l, t, w, h, key, label) => '<div class="pmk-btn" data-k="' + key.toLowerCase() + '" style="left:' + l + '%;top:' + t + '%;width:' + w + '%;height:' + h + '%"><span class="kk">' + key + '</span><span class="kl">' + label + '</span></div>';
+  // C is a SHOULDER TRIGGER on the top edge (not a face button); A / B are the two
+  // round face buttons below it. (Keyboard: D→C trigger, X→A, Z→B.)
+  const cTrigger = '<div class="pmk-btn pmk-trigger" data-k="d" style="left:48%;top:2%;width:44%;height:15%"><span class="kk">D</span><span class="kl">C</span></div>';
+  const btns = cTrigger + b(50, 46, 22, 32, 'Z', 'B') + b(74, 46, 22, 32, 'X', 'A');
+  panel.innerHTML = '<div class="pmk-wrap"><div class="pmk-diagram">' + dpad + btns + '</div></div>'
+    + '<div class="pmk-extra"><span><b>P</b> Power</span><span><b>K</b> Shake</span><span><b>⌫</b> Rewind</span></div>';
+}
+// Live highlight: a held key fills its button in the diagram (mirrors the G&W
+// Controls screen's attachInput). Active only while the Keys screen is open.
+let _pmKeyInput = null;
+function pmAttachKeyHighlight() {
+  const panel = document.getElementById('pm-keys-panel'); if (!panel) return;
+  pmDetachKeyHighlight();
+  const light = (k, on) => panel.querySelectorAll('[data-k]').forEach(el => {
+    if (el.getAttribute('data-k').split(',').indexOf(k) >= 0) el.classList.toggle('lit', on);
+  });
+  _pmKeyInput = { down: e => light(e.key.toLowerCase(), true), up: e => light(e.key.toLowerCase(), false) };
+  window.addEventListener('keydown', _pmKeyInput.down, true);
+  window.addEventListener('keyup', _pmKeyInput.up, true);
+}
+function pmDetachKeyHighlight() {
+  if (!_pmKeyInput) return;
+  window.removeEventListener('keydown', _pmKeyInput.down, true);
+  window.removeEventListener('keyup', _pmKeyInput.up, true);
+  _pmKeyInput = null;
+}
+function pmOpenKeys() {
+  pmRenderKeys();
+  const p = document.getElementById('pm-keys-panel'); if (p) p.classList.add('open');
+  const pill = document.getElementById('pm-toolbar-pill'); if (pill) pill.classList.add('sub-open');
+  pmAttachKeyHighlight();
+}
+function pmCloseKeys() {
+  const p = document.getElementById('pm-keys-panel'); if (p) p.classList.remove('open');
+  const pill = document.getElementById('pm-toolbar-pill'); if (pill) pill.classList.remove('sub-open');
+  pmDetachKeyHighlight();
+}
+window.pmOpenKeys = pmOpenKeys;
+window.pmCloseKeys = pmCloseKeys;
+
+// Kick the availability probe once, deferred to idle AFTER load, so it never
+// competes with (or blocks) the classic-emulator boot. It only sets flags +
+// refreshes PM Play badges; the heavy ROM JSON is still fetched lazily on launch.
+(function schedulePmProbe() {
+  const go = () => (window.requestIdleCallback ? requestIdleCallback(pmProbeAvailability, { timeout: 3000 }) : setTimeout(pmProbeAvailability, 1200));
+  if (document.readyState === 'complete') go();
+  else window.addEventListener('load', go, { once: true });
+})();
+
+// Shared Pokémon Mini console specifications — the same hardware every game in
+// the catalogue ran on. Rendered in each PM device's Hardware tab (pmHardwareTabHTML).
+const POKEMON_MINI_SPECS = [
+  { k:'CPU',        v:'Epson S1C88 @ 4 MHz (8-bit)' },
+  { k:'RAM',        v:'4 KB' },
+  { k:'BIOS ROM',   v:'4 KB' },
+  { k:'Save',       v:'8 KB EEPROM (6 files)' },
+  { k:'Cartridge',  v:'Game Pak, up to 2 MB' },
+  { k:'Screen',     v:'96 × 64 monochrome dot-matrix @ 30 fps (no greyscale)' },
+  { k:'Audio',      v:'Single square-wave channel (3 volume steps)' },
+  { k:'Controls',   v:'D-pad + A / B + shoulder C + Power' },
+  { k:'Feedback',   v:'Rumble motor + reed-switch shock sensor' },
+  { k:'Link',       v:'Infrared (1 m range, up to 6 players)' },
+  { k:'Clock',      v:'Battery-backed real-time clock' },
+  { k:'Power',      v:'1× AAA (~60 h)' },
+  { k:'Size',       v:'74 × 58 × 23 mm, 70 g' },
 ];
 
 // gameKey -> series, for the Play modal's #play-device (which, unlike a tile's
@@ -14190,6 +15228,10 @@ function renderRoute() {
   } else if (state.route === '/collection') {
     $('#view-collection').classList.add('active');
     document.querySelector('.nav-link[data-route="/collection"]').classList.add('active');
+  } else if (state.route === '/pokemon-mini') {
+    $('#view-pokemon-mini').classList.add('active');
+    document.querySelector('.nav-link[data-route="/pokemon-mini"]').classList.add('active');
+    renderPM();
   } else if (state.route === '/about') {
     $('#view-about').classList.add('active');
     document.querySelector('.nav-link[data-route="/about"]').classList.add('active');
@@ -14203,7 +15245,9 @@ function renderRoute() {
 // always first and is the default/reset state.
 function renderChips() {
   const menu = $('#series-dropdown-menu');
-  const all = [{id:null, name:'Show All', color:null}, ...SERIES];
+  // Pokémon Mini is a parallel catalogue, not a Game & Watch series — keep it out
+  // of the G&W collection's series filter dropdown (it has zero G&W devices).
+  const all = [{id:null, name:'Show All', color:null}, ...SERIES.filter(s => s.id !== 'pokemon-mini')];
   const current = state.series ?? null;
   menu.innerHTML = all.map(s => {
     const active = current === (s.id ?? null) ? 'active' : '';
@@ -14451,6 +15495,16 @@ const TALL_MULTISCREEN_IDS = new Set([
   // user's "make the Panorama tiles the same dimensions as the Table Tops".
   'panorama-donkey-kong-jr', 'panorama-mickey-mouse', 'panorama-donkey-kong-circus',
   'panorama-marios-bombs-away', 'panorama-snoopy', 'panorama-popeye',
+  // Pokémon Mini cartridges: render at the stacked (screens-above-and-below)
+  // tile-tall size, per the user's request. All ten in the parallel catalogue.
+  'pm-pichu-bros-mini', 'pm-pokemon-breeder-mini', 'pm-pokemon-party-mini',
+  'pm-pokemon-pinball-mini', 'pm-pokemon-puzzle-collection',
+  'pm-pokemon-puzzle-collection-vol-2', 'pm-pokemon-race-mini',
+  'pm-pokemon-shock-tetris', 'pm-pokemon-zany-cards', 'pm-togepis-great-adventure',
+  // Tetris Jr. (TR-66) prototype: its static hero is a reskinned Multi Screen
+  // clamshell (Safe Buster's case), so give it the SAME tall 5/6 tile box as
+  // the other Multi Screen units instead of the default 5/4.
+  'prototype-tetris-jr',
 ]);
 // Super Color's own case is even more elongated than the tall Multi Screen
 // units above -- 2x the default tile height (see .tile-tall-2x CSS) rather
@@ -14604,12 +15658,97 @@ function tileEmuLayersHTML(g) {
 const TFT_TWIN_UNITS = { 'reissue-super-mario-bros': 'mario', 'reissue-zelda': 'zelda' };
 const TFT_TWIN_UNITS_ART = { mario: 'play/mario/device.jpg', zelda: 'play/zelda/device.png' };
 
+// Tetris Jr. (TR-66) is our own clean-room JS device (no ROM), so its live tile
+// + drawer previews are an IFRAME of the play page in silent attract/demo mode
+// (?demo=1) — our red-clamshell recreation auto-playing with the live clock —
+// rather than a canvas twin (TFT) or gnw LCD core. One id, one markup helper.
+const TJ_ID = 'prototype-tetris-jr';
+const TJ_ART_KEY = 'PrototypeTetrisJrArt.webp';   // the REAL device artwork (its d.img) — this is a preservation site, so it ALWAYS shows
+const TJ_DEMO_SRC = 'play/tetrisjr/index.html?demo=1';
+
+// The gallery/hero photo of Tetris Jr. is our clean full-cabinet artwork — but
+// with blank bright-green LCD windows it reads like a lit panel, not a real
+// powered-OFF device. We derive a proper off-state variant at runtime (no stored
+// blob, always in sync with the play page): the printed window scenery drawn into
+// each green window, multiplied by the SAME polariser tint the live screens use
+// (matched to Mickey & Donald's off-LCD field), plus the black round button baked
+// in to match the recoloured live device. Cached into IMG under this key; the
+// gallery swaps it in for the plain artwork once ready (getDeviceImages/heroImgKey).
+const TJ_OFF_KEY = 'PrototypeTetrisJrOff.webp';
+// LCD window rects + polariser — kept identical to play/tetrisjr/index.html.
+const TJ_WINDOWS = [
+  { x: 0.2764, y: 0.1417, w: 0.4455, h: 0.2301, bg: 'play/tetrisjr/top-window.png' },
+  { x: 0.2764, y: 0.6158, w: 0.4455, h: 0.2308, bg: 'play/tetrisjr/bottom-window.png' },
+];
+const TJ_POLARIZER = 'rgb(157,180,170)';   // opaque multiply → 211-white maps to M&D's rgb(129,148,140)
+function _tjLoadImg(src) { return new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = src; }); }
+let _tjOffBuilding = false;
+async function buildTjOffImage() {
+  if (_tjOffBuilding || imgIsEmbedded(TJ_OFF_KEY)) return;
+  _tjOffBuilding = true;
+  try {
+    const artSrc = imgSrc(TJ_ART_KEY);
+    if (!/^data:/.test(artSrc)) return;   // need the embedded artwork (canvas-safe)
+    const [art, top, bot] = await Promise.all([
+      _tjLoadImg(artSrc), _tjLoadImg(TJ_WINDOWS[0].bg), _tjLoadImg(TJ_WINDOWS[1].bg),
+    ]);
+    const W = art.naturalWidth, H = art.naturalHeight;
+    const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+    const cx = cv.getContext('2d');
+    cx.drawImage(art, 0, 0);
+    const scen = [top, bot];
+    TJ_WINDOWS.forEach((win, i) => {
+      const rx = Math.round(win.x * W), ry = Math.round(win.y * H), rw = Math.round(win.w * W), rh = Math.round(win.h * H);
+      const oc = document.createElement('canvas'); oc.width = rw; oc.height = rh;
+      const ox = oc.getContext('2d');
+      ox.drawImage(scen[i], 0, 0, rw, rh);            // printed scenery, filled to the window
+      ox.globalCompositeOperation = 'multiply';
+      ox.fillStyle = TJ_POLARIZER; ox.fillRect(0, 0, rw, rh);   // polariser tint, opaque multiply
+      ox.globalCompositeOperation = 'source-over';
+      cx.drawImage(oc, rx, ry);
+    });
+    // Black round action button, matching the play page's #rotate-cap (centre 86.9%/84.4%).
+    const bx = 0.869 * W, by = 0.844 * H, brx = 0.0355 * W, bry = 0.02875 * H;
+    cx.save();
+    cx.beginPath(); cx.ellipse(bx, by, brx, bry, 0, 0, Math.PI * 2); cx.closePath(); cx.clip();
+    const dome = cx.createRadialGradient(bx - brx * 0.26, by - bry * 0.40, brx * 0.08, bx, by, brx * 1.02);
+    dome.addColorStop(0, '#5c5c5e'); dome.addColorStop(0.26, '#343436'); dome.addColorStop(0.60, '#161617'); dome.addColorStop(1, '#060607');
+    cx.fillStyle = dome; cx.fillRect(bx - brx, by - bry, brx * 2, bry * 2);
+    const sx = bx - brx * 0.42, sy = by - bry * 0.55, sr = brx * 0.55;
+    const spec = cx.createRadialGradient(sx, sy, 0, sx, sy, sr);
+    spec.addColorStop(0, 'rgba(255,255,255,0.42)'); spec.addColorStop(0.7, 'rgba(255,255,255,0)'); spec.addColorStop(1, 'rgba(255,255,255,0)');
+    cx.fillStyle = spec; cx.fillRect(sx - sr, sy - sr, sr * 2, sr * 2);
+    cx.restore();
+    IMG[TJ_OFF_KEY] = cv.toDataURL('image/webp', 0.92).split(',')[1];
+  } catch (e) {
+    /* leave the plain artwork as the fallback */
+  } finally {
+    _tjOffBuilding = false;
+  }
+}
+// Live tile/drawer preview — same discipline as the TFT twins: the genuine
+// device artwork is the base image and a TRANSPARENT iframe (our play page in
+// screens-only demo mode) lays the two live LCD screens over its green windows.
+// The artwork is never replaced; the iframe only brings the screens alive. src
+// is set lazily on the tile (observer) and immediately on the stage/drawer.
+function tjEmuHTML(withSrc) {
+  return '<div class="tj-emu">' +
+           '<img class="tj-emu-art" src="' + imgSrc(TJ_ART_KEY) + '" alt="">' +
+           '<iframe class="tj-emu-screen" data-tj="1"' + (withSrc ? ' src="' + TJ_DEMO_SRC + '"' : '') +
+             ' title="Tetris Jr. live screen" scrolling="no" tabindex="-1" aria-hidden="true"></iframe>' +
+         '</div>';
+}
+
 function deviceCardHTML(d) {
   const s = seriesById(d.series);
+  // Pokémon Mini uses its own view-mode toggle (pmViewMode); every other device
+  // uses the global viewMode. effectiveViewMode() folds that choice so the tile
+  // picks the right image (console vs 3-D box art) without the two colliding.
+  const vm = effectiveViewMode(d);
   // Cards prefer the small clean HERO_IMAGES shot (madrigaldesign); fall back
   // to the regular hero key if no hero is registered. Box-art mode bypasses
   // this entirely and uses BOX_ART_IMAGES via heroImgKey.
-  const heroKey = (viewMode === 'hardware' && HERO_IMAGES[d.id]) ? HERO_IMAGES[d.id] : heroImgKey(d);
+  const heroKey = (vm === 'hardware' && HERO_IMAGES[d.id]) ? HERO_IMAGES[d.id] : heroImgKey(d);
   const knownBroken = heroKey && BROKEN_IMG_KEYS.has(heroKey);
   const src = (heroKey && !knownBroken) ? imgSrc(heroKey) : '';
   const missing = (!heroKey || knownBroken) ? 'missing' : '';
@@ -14621,10 +15760,10 @@ function deviceCardHTML(d) {
   const heroSrcAttr = src ? ` data-hero-src="${src.replace(/"/g, '&quot;')}" data-hero-key="${heroKey}"` : '';
   const canCollect = isCollectable(d);
   const isCol = canCollect && collected.has(d.id);
-  const noBox = (viewMode === 'boxart'   && !BOX_ART_IMAGES[d.id]) ||
-                (viewMode === 'boxart3d' && !BOX_ART_3D_IMAGES[d.id]);
-  const placeholder = noBox ? (viewMode === 'boxart3d' ? '3D box art not added' : 'Box art not added')
-                            : (missing ? 'Image unavailable' : '');
+  const noBox = (vm === 'boxart'   && !BOX_ART_IMAGES[d.id]) ||
+                (vm === 'boxart3d' && !BOX_ART_3D_IMAGES[d.id]);
+  const placeholder = noBox ? (vm === 'boxart3d' ? '3D box art not added' : 'Box art not added')
+                            : (missing ? (d.catalogue === 'pokemon-mini' ? 'Pokémon Mini' : 'Image unavailable') : '');
   // A device is playable if it has EITHER a built-in emulator OR a
   // RetroFab slug -- this used to only check GAME_SLUGS, silently hiding
   // the Play button for any device with a working built-in emulator but
@@ -14633,10 +15772,19 @@ function deviceCardHTML(d) {
   // built-in-emulator title happened to also have a GAME_SLUGS entry).
   // openPlay() itself already checked GNW_EMULATED_GAMES first with a
   // GAME_SLUGS fallback; only this visibility gate was out of sync with it.
-  const playable = !!GAME_SLUGS[d.id] || !!GNW_EMULATED_GAMES[d.id] || !!TFT_TWIN_UNITS[d.id];
-  const playTitle = (GNW_EMULATED_GAMES[d.id] || TFT_TWIN_UNITS[d.id]) ? 'Play the built-in emulator' : 'Play on RetroFab (opens in new tab)';
+  // Pokémon mini tiles show Play only when the game's ROM + shared BIOS are
+  // present (pokemini_roms.json or a content pack); otherwise the tile just
+  // shows no badge (the "Batteries not included" state). Every other device
+  // uses the classic built-in-emulator / RetroFab gate.
+  const isPmCard = d.catalogue === 'pokemon-mini';
+  const isTj = d.id === 'prototype-tetris-jr';   // clean-room JS recreation, played via openTjPlay (iframe)
+  const playable = isPmCard ? pmPlayable(d)
+                            : (!!GAME_SLUGS[d.id] || !!GNW_EMULATED_GAMES[d.id] || !!TFT_TWIN_UNITS[d.id] || isTj);
+  const playTitle = isPmCard ? 'Play the Pokémon mini emulator'
+                  : (GNW_EMULATED_GAMES[d.id] || TFT_TWIN_UNITS[d.id] || isTj) ? 'Play the built-in emulator' : 'Play on RetroFab (opens in new tab)';
+  const playHandler = isPmCard ? `openPmPlay('${d.id}', event)` : `openPlay('${d.id}', event)`;
   const playBtn = playable
-    ? `<div class="play-badge" onclick="openPlay('${d.id}', event)" title="${playTitle}" aria-label="Play"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="11" x2="10" y2="11"/><line x1="8" y1="9" x2="8" y2="13"/><line x1="15" y1="12" x2="15.01" y2="12"/><line x1="18" y1="10" x2="18.01" y2="10"/><path d="M17.32 5H6.68a4 4 0 0 0-3.978 3.59c-.006.052-.01.101-.017.152C2.604 9.416 2 14.456 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.414-1.414A2 2 0 0 1 9.828 16h4.344a2 2 0 0 1 1.414.586L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.545-.604-6.584-.685-7.258C21.166 6.83 19.51 5 17.32 5z"/></svg></div>`
+    ? `<div class="play-badge" onclick="${playHandler}" title="${playTitle}" aria-label="Play"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="11" x2="10" y2="11"/><line x1="8" y1="9" x2="8" y2="13"/><line x1="15" y1="12" x2="15.01" y2="12"/><line x1="18" y1="10" x2="18.01" y2="10"/><path d="M17.32 5H6.68a4 4 0 0 0-3.978 3.59c-.006.052-.01.101-.017.152C2.604 9.416 2 14.456 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.414-1.414A2 2 0 0 1 9.828 16h4.344a2 2 0 0 1 1.414.586L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.545-.604-6.584-.685-7.258C21.166 6.83 19.51 5 17.32 5z"/></svg></div>`
     : '';
   const manualBtn = (MANUAL_BOOKLETS[d.id] || MANUALS[d.id])
     ? `<div class="manual-badge" onclick="openManual('${d.id}', event)" title="View the instruction manual" aria-label="View manual"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div>`
@@ -14648,17 +15796,29 @@ function deviceCardHTML(d) {
   // on their tile instead of a static photo (hardware view only — box-art
   // view modes still show the packaging image as normal).
   const emuGame = GNW_EMULATED_GAMES[d.id];
-  const isTileEmu = !!emuGame && viewMode === 'hardware' && !STATIC_PREVIEW_IDS.has(d.id);
+  const isTileEmu = !!emuGame && vm === 'hardware' && !STATIC_PREVIEW_IDS.has(d.id);
   // The two 35th-anniversary TFT colour units run the ARM digital twin instead
   // of the gnw LCD engine -- a live <canvas> booting to the clock, lazily
   // loaded + gated (see mountTftTilePreviews). Hardware view only, exactly like
   // the gnw tile previews; box-art view modes still show the packaging image.
   const tftUnit = TFT_TWIN_UNITS[d.id];
-  const isTftTile = !!tftUnit && viewMode === 'hardware';
+  const isTftTile = !!tftUnit && vm === 'hardware';
+  // Pokémon mini tiles run the CLEAN-ROOM PM core live in the tile (muted,
+  // input-less attract/demo) inside their colour-matched console art -- exactly
+  // like a G&W tile shows its device running -- whenever the game's ROM + BIOS
+  // are available. Hardware view only; when content is absent the tile falls to
+  // the static console (the `else` branch). See mountPmTilePreviews.
+  const isPmTile = isPmCard && vm === 'hardware' && pmPlayable(d);
+  // Tetris Jr.: our live clean-room device demo (iframe) in place of a static photo.
+  const isTjTile = d.id === TJ_ID && vm === 'hardware';
   const imgInner = isTileEmu
     ? `<div class="tile-emu" data-game="${emuGame.key}">${tileEmuLayersHTML(emuGame)}</div><span class="tag">${s.name}</span>`
     : isTftTile
     ? `<div class="tft-emu"><img class="tft-emu-art" src="${TFT_TWIN_UNITS_ART[tftUnit]}" alt=""><canvas class="tft-emu-screen" data-unit="${tftUnit}" width="320" height="240"></canvas></div><span class="tag">${s.name}</span>`
+    : isPmTile
+    ? `<div class="pm-emu"><img class="pm-emu-art" src="${imgSrc(pmConsoleKey(d))}" alt=""><canvas class="pm-emu-screen" data-pm="${d.id}" width="96" height="64"></canvas></div><span class="tag">${s.name}</span>`
+    : isTjTile
+    ? `${tjEmuHTML()}<span class="tag">${s.name}</span>`
     : `${placeholder}<span class="tag">${s.name}</span>`;
   // Not a strict either/or any more -- Panorama is in BOTH TALL_2X_IDS and
   // WIDE_MULTISCREEN_IDS at once (see their own comments), giving a combined
@@ -14673,19 +15833,415 @@ function deviceCardHTML(d) {
     ${collectBadge}
     ${playBtn}
     ${manualBtn}
-    <div class="img ${missing}${isTileEmu?' has-tile-emu':''}${isTftTile?' has-tft-emu':''}"${(isTileEmu||isTftTile)?'':heroSrcAttr} style="${(isTileEmu||isTftTile)?'':style}">${imgInner}</div>
+    <div class="img ${missing}${isTileEmu?' has-tile-emu':''}${isTftTile?' has-tft-emu':''}${isPmTile?' has-pm-emu':''}${isTjTile?' has-tj-emu':''}"${(isTileEmu||isTftTile||isPmTile||isTjTile)?'':heroSrcAttr} style="${(isTileEmu||isTftTile||isPmTile||isTjTile)?'':style}">${imgInner}</div>
     <div class="body">
       <div class="name">${d.name}</div>
-      <div class="meta"><span class="model">${d.model}</span> · ${formatMonthYear(d.released)}</div>
+      <div class="meta">${d.model ? `<span class="model">${d.model}</span> · ` : ''}${formatMonthYear(d.released)}</div>
     </div>
   </div>`;
 }
 
 function matchesQuery(d, q) {
   return d.name.toLowerCase().includes(q) ||
-    d.model.toLowerCase().includes(q) ||
+    (d.model || '').toLowerCase().includes(q) ||
     d.released.toLowerCase().includes(q) ||
     seriesById(d.series).name.toLowerCase().includes(q);
+}
+
+/* ============================================================================
+ * Pokémon Mini catalogue — the parallel view. renderPM() is to POKEMON_MINI what
+ * render() is to DEVICES: it filters by the PM search + sort and paints
+ * #pm-device-grid using the EXACT SAME shared components (deviceCardHTML,
+ * matchesQuery, layoutMasonry, renderCoverflow). Its toolbar controls carry
+ * their own pm-… ids and pmState/pmDisplayMode so they never fight the Game &
+ * Watch toolbar. No series grouping, no box-art modes, no 'series' sort.
+ *
+ * DISPLAY MODES mirror the G&W collection: 'device' (flat cards inside the
+ * frame — the PM default, since PM has no series to group), 'tile' (dense
+ * full-bleed grid) and 'coverflow' (the shared 3D flow). tile/coverflow strip
+ * the frame chrome via updateTileFrameClass (which is PM-route aware).
+ * ========================================================================== */
+let pmState = { search:'', sort:'date', randomIds:null };
+let pmDisplayMode = 'device'; // 'device' | 'tile' | 'coverflow' (own state, not GnW's displayMode)
+let pmViewMode = 'hardware';  // 'hardware' | 'boxart3d' (PM has only these two — no plain box art)
+
+// PM view-preference persistence — mirrors the G&W DISPLAY_MODE_KEY/SORT_MODE_KEY/
+// VIEW_MODE_KEY mechanism (localStorage, restored at boot) but under PM-specific
+// keys so the two pages never collide. DISPLAY_MODES is reused for validation;
+// PM has no 'series' sort and no plain 'boxart' view mode.
+const PM_DISPLAY_MODE_KEY = 'pp-pm-display-mode-v1';
+const PM_SORT_MODE_KEY    = 'pp-pm-sort-mode-v1';
+const PM_VIEW_MODE_KEY    = 'pp-pm-view-mode-v1';
+const PM_SORT_MODES = ['date', 'alpha', 'random'];
+const PM_VIEW_MODES = ['hardware', 'boxart3d'];
+function savePMDisplayMode() { try { localStorage.setItem(PM_DISPLAY_MODE_KEY, pmDisplayMode); } catch (e) {} }
+function savePMSort()        { try { localStorage.setItem(PM_SORT_MODE_KEY, pmState.sort); } catch (e) {} }
+function savePMViewMode()    { try { localStorage.setItem(PM_VIEW_MODE_KEY, pmViewMode); } catch (e) {} }
+function loadPMPrefs() {
+  try {
+    const dm = localStorage.getItem(PM_DISPLAY_MODE_KEY);
+    if (DISPLAY_MODES.indexOf(dm) >= 0) pmDisplayMode = dm;
+    const sm = localStorage.getItem(PM_SORT_MODE_KEY);
+    if (PM_SORT_MODES.indexOf(sm) >= 0) pmState.sort = sm;
+    const vm = localStorage.getItem(PM_VIEW_MODE_KEY);
+    if (PM_VIEW_MODES.indexOf(vm) >= 0) pmViewMode = vm;
+  } catch (e) {}
+  updatePMDisplayButtons();
+  updatePMSortButtons();
+  updatePMViewModeButtons();
+}
+
+function updatePMViewModeButtons() {
+  const hw = $('#pm-hardware-view-btn'), b3 = $('#pm-boxart3d-view-btn');
+  if (hw) hw.classList.toggle('active', pmViewMode === 'hardware');
+  if (b3) b3.classList.toggle('active', pmViewMode === 'boxart3d');
+}
+
+function setPMViewMode(m) {
+  pmViewMode = m;
+  savePMViewMode();
+  updatePMViewModeButtons();
+  renderPM();
+}
+
+function applyPMSort(list) {
+  if (pmState.sort === 'alpha') return list.slice().sort((a, b) => a.name.localeCompare(b.name));
+  if (pmState.sort === 'random') {
+    if (!pmState.randomIds) pmState.randomIds = shuffledArray(POKEMON_MINI.map(d => d.id));
+    const rank = new Map(pmState.randomIds.map((id, i) => [id, i]));
+    return list.slice().sort((a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0));
+  }
+  // default: date (earliest regional release ascending)
+  return list.slice().sort((a, b) => a.released.localeCompare(b.released));
+}
+
+function renderPM() {
+  const grid = $('#pm-device-grid');
+  if (!grid) return;
+  updateTileFrameClass(); // PM-route aware: strips the frame for tile/coverflow
+  updatePMDisplayButtons();
+  updatePMSortButtons();
+  updatePMViewModeButtons();
+  const inp = $('#pm-search');
+  if (inp) pmState.search = inp.value || '';
+  const q = pmState.search.trim().toLowerCase();
+  let list = POKEMON_MINI.slice();
+  if (q) list = list.filter(d => matchesQuery(d, q));
+  list = applyPMSort(list);
+  const empty = $('#pm-empty');
+
+  // Cover Flow: REUSE the G&W coverflow renderer (renderCoverflow + the shared
+  // _cf* state / cf-* ids) unchanged, pointed at the PM grid + list. Only one
+  // coverflow can exist at a time (the cf-* ids and _cf* state are singletons),
+  // so first make sure the hidden G&W #device-grid isn't also holding one — the
+  // render() coverflow branch is likewise guarded to only build on /collection.
+  if (pmDisplayMode === 'coverflow') {
+    if (empty) empty.style.display = list.length ? 'none' : 'block';
+    const g = $('#device-grid');
+    if (g) { g.innerHTML = ''; g.className = ''; g.style.height = ''; }
+    renderCoverflow(grid, list);
+    return;
+  }
+
+  // 'device' and 'tile' are both the flat card grid here (PM has no series to
+  // group); the only difference is the frame chrome, handled by the body class
+  // above. Same deviceCardHTML + layoutMasonry the G&W tile/device views use.
+  grid.className = 'grid';
+  if (!list.length) {
+    grid.innerHTML = '';
+    if (empty) empty.style.display = 'block';
+  } else {
+    if (empty) empty.style.display = 'none';
+    grid.innerHTML = list.map(deviceCardHTML).join('');
+    layoutMasonry(grid);
+  }
+  probeCardImages();
+  mountPmTilePreviews();   // (re)bind the live PM tile previews to the new canvases
+}
+
+function updatePMSortButtons() {
+  const map = { date: 'pm-sort-date-btn', alpha: 'pm-sort-alpha-btn', random: 'pm-sort-random-btn' };
+  for (const k in map) { const b = $('#' + map[k]); if (b) b.classList.toggle('active', pmState.sort === k); }
+}
+
+function setPMSort(m) {
+  if (m === 'random') pmState.randomIds = shuffledArray(POKEMON_MINI.map(d => d.id));
+  pmState.sort = m;
+  savePMSort();
+  updatePMSortButtons();
+  renderPM();
+}
+
+function updatePMDisplayButtons() {
+  const map = { device: 'pm-display-device-btn', tile: 'pm-display-tile-btn', coverflow: 'pm-display-coverflow-btn' };
+  for (const k in map) { const b = $('#' + map[k]); if (b) b.classList.toggle('active', pmDisplayMode === k); }
+}
+
+function setPMDisplayMode(m) {
+  pmDisplayMode = m;
+  savePMDisplayMode();
+  updatePMDisplayButtons();
+  renderPM();
+}
+
+// Multi-region release list for the PM drawer's Info tab — region → date + serial.
+function pmRegionsHTML(d) {
+  const rows = (d.regions || []).map(r => {
+    const ser = (r.serial && r.serial !== '—') ? ` · <span style="font-variant-numeric:tabular-nums">${r.serial}</span>` : '';
+    return `<div class="row"><span class="k">${r.region}</span><span class="v">${formatMonthYear(r.date)}${ser}</span></div>`;
+  }).join('');
+  return `<div class="factbox">${rows}</div>`;
+}
+
+// PM Hardware tab — the SHARED Pokémon Mini console specs plus this game's own
+// features. Reuses the Game & Watch hardware-tab section styling for consistency.
+function pmHardwareTabHTML(d) {
+  const specRows = POKEMON_MINI_SPECS.map(r => `<div class="row"><span class="k">${r.k}</span><span class="v">${r.v}</span></div>`).join('');
+  const feats = (d.features && d.features.length) ? d.features.map(f => `<li>${f}</li>`).join('') : '<li>None</li>';
+  return `
+    <div class="hw-tab">
+      <div class="hw-chip-header">
+        <h2>Pokémon Mini</h2>
+        <p class="hw-chip-tag">Nintendo's smallest cartridge system · 2001</p>
+      </div>
+      <section class="sect">${hwSectH('Console Specifications')}
+        <p class="hw-readable">Every game in this catalogue ran on the same compact hardware: an 8-bit Epson S1C88 driving a 96×64 monochrome dot-matrix screen, with a rumble motor, a reed-switch shock sensor and an infrared link all built into a shell just 74 mm tall.</p>
+        <div class="factbox factbox-stacked">${specRows}</div>
+      </section>
+      <section class="sect">${hwSectH('This Cartridge — ' + d.name)}
+        <p class="hw-readable">The hardware features this title makes use of:</p>
+        <ul class="hw-sources hw-readable">${feats}</ul>
+      </section>
+    </div>`;
+}
+
+// The Pokémon Mini device drawer — a simpler two-tab (Info + Hardware) version of
+// openDevice()'s drawer. No emulation/source/play tabs, no ownership/market
+// machinery. Reuses the same modal shell, drawer-tabs, collect star and facts box.
+function openPMDevice(d) {
+  const s = seriesById(d.series);
+  _openDeviceId = d.id;
+  hwStopReading();
+  // Desktop gets the big left-side device stage — the shared console rendered
+  // STATICALLY with the G&W slide-in + 20° tilt (showDeviceStage's static-preview
+  // path, PM ids are in STATIC_PREVIEW_IDS). On mobile that stage is hidden, so
+  // fall back to the quick drawer slide (body.no-demo-device), exactly like the
+  // static-preview G&W devices do.
+  const _mobileView  = window.matchMedia('(max-width: 1200px)').matches;
+  const _staticStage = !_mobileView && !!d.img;
+  document.body.classList.toggle('no-demo-device', !_staticStage);
+
+  const isCol = collected.has(d.id);
+  const collectBtn = isShareMode
+    ? (isCol ? `<div class="share-collected-info"><span class="check">✓</span><span>In the owner's collection</span></div>` : '')
+    : `<button class="drawer-collected${isCol ? ' on' : ''}" onclick="toggleCollected('${d.id}', event); refreshDrawerCollected('${d.id}', this)">
+        <span class="check">✓</span>
+        <span class="label">${isCol ? 'Collected — click to unmark' : 'I have this game · Mark as collected'}</span>
+      </button>`;
+
+  const factEntries = {
+    Developer: d.developer,
+    Genre: d.genre,
+    Players: d.players,
+    Cartridge: d.cartridge,
+    Features: (d.features && d.features.length) ? d.features.join(', ') : '—',
+  };
+  const facts = Object.entries(factEntries).map(([k, v]) => `<div class="row"><span class="k">${k}</span><span class="v">${v || '—'}</span></div>`).join('');
+
+  // Drawer inline hero — follows the PM view mode (console in hardware, 3-D box
+  // art in boxart3d) via heroImgKey. Clickable → openLightbox (which zooms the
+  // same current-view image). background-color:transparent (NOT the `background`
+  // shorthand, which would wipe the image) so the cut-out floats with no box.
+  const heroKey = heroImgKey(d);
+  const heroResolved = heroKey ? imgSrc(heroKey) : '';
+  const heroHTML = heroResolved
+    ? `<div class="device-modal-img" onclick="openLightbox('${d.id}', 0)" data-hero-key="${heroKey}" style="background-image:url('${heroResolved.replace(/"/g, '&quot;')}');background-color:transparent;background-size:auto 82%;background-position:center;background-repeat:no-repeat;"></div>`
+    : `<div class="device-modal-img missing"><div style="height:100%;display:flex;align-items:center;justify-content:center;color:#2a3242;letter-spacing:.2em;text-transform:uppercase;font-size:13px;text-align:center;padding:0 24px;">${d.name}</div></div>`;
+
+  $('#device-modal').innerHTML = `
+    <div class="modal-head">
+      <div>
+        <div class="modal-sub">${s.name} · ${formatMonthYear(d.released)}</div>
+        <div class="modal-title">${d.name}</div>
+      </div>
+      <button class="modal-close" onclick="closeOverlay('device-overlay')" aria-label="Close">×</button>
+    </div>
+    <div class="drawer-tabs" style="--c:${s.color}">
+      <button type="button" class="drawer-tab active" data-tab="device" onclick="switchDrawerTab(this,'device')">${d.name}</button>
+      <button type="button" class="drawer-tab" data-tab="hardware" onclick="switchDrawerTab(this,'hardware')">Hardware</button>
+    </div>
+    <div class="drawer-tab-content active" data-tab-content="device">
+    <div class="device-modal-grid">
+      <div class="drawer-left">
+        ${heroHTML}
+        <div class="device-modal-body" style="--c:${s.color}">
+          <div class="pill-row">
+            <span class="pill series-pill" onclick="closeOverlay('device-overlay');route('/pokemon-mini')" style="cursor:pointer">${s.name}</span>
+            ${d.genre ? `<span class="pill">${d.genre}</span>` : ''}
+            <span class="pill">${formatMonthYear(d.released)}</span>
+            ${pmPlayable(d) ? `<button class="play-now" onclick="openPmPlay('${d.id}', event)" title="Play the Pokémon mini emulator" aria-label="Play"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="11" x2="10" y2="11"/><line x1="8" y1="9" x2="8" y2="13"/><line x1="15" y1="12" x2="15.01" y2="12"/><line x1="18" y1="10" x2="18.01" y2="10"/><path d="M17.32 5H6.68a4 4 0 0 0-3.978 3.59c-.006.052-.01.101-.017.152C2.604 9.416 2 14.456 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.414-1.414A2 2 0 0 1 9.828 16h4.344a2 2 0 0 1 1.414.586L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.545-.604-6.584-.685-7.258C21.166 6.83 19.51 5 17.32 5z"/></svg><span>Play Now!</span></button>` : ''}
+          </div>
+          <div class="drawer-title-row">
+            <h2>${d.name}</h2>
+          </div>
+          ${collectBtn}
+          ${d.description ? `<section class="sect"><h3 class="sect-h">About</h3><p>${d.description}</p></section>` : ''}
+          ${d.additional ? `<section class="sect"><h3 class="sect-h">Additional Info</h3><p>${d.additional}</p></section>` : ''}
+          ${d.promo ? `<section class="sect"><h3 class="sect-h">From the Promo</h3><p>${d.promo}</p></section>` : ''}
+          <section class="sect"><h3 class="sect-h">Releases</h3>${pmRegionsHTML(d)}</section>
+          ${isCollectable(d) ? `
+          <section class="sect ownership-panel requires-collected" data-device-id="${d.id}">
+            <h3 class="sect-h">Your copy</h3>
+            <div class="ownership-grid">
+              <div>
+                <label for="own-acquired">Acquired</label>
+                <input type="date" id="own-acquired" oninput="ownershipFieldChanged('${d.id}')">
+              </div>
+              <div>
+                <label>Device Grade</label>
+                <div class="cur-select cur-select-grade" data-grade-kind="device" tabindex="0" onclick="toggleCurrencyDropdown(this, event)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleCurrencyDropdown(this,event)}">
+                  <input type="hidden" id="own-device-grade" value="">
+                  <span class="cur-current">
+                    <span class="grade-letter" id="own-device-grade-letter">—</span>
+                    <span class="grade-desc" id="own-device-grade-desc">Not graded</span>
+                  </span>
+                  <svg class="cur-arrow" viewBox="0 0 10 6"><path d="M0 0l5 6 5-6z" fill="currentColor"/></svg>
+                  <div class="cur-panel" role="listbox">
+                    <div class="cur-option" data-grade=""  onclick="selectGrade(this,'',  '${d.id}','device',event)"><span class="grade-letter">—</span><span>Not graded</span></div>
+                    <div class="cur-option" data-grade="S" onclick="selectGrade(this,'S','${d.id}','device',event)"><span class="grade-letter">S</span><span>Sealed</span></div>
+                    <div class="cur-option" data-grade="A" onclick="selectGrade(this,'A','${d.id}','device',event)"><span class="grade-letter">A</span><span>Mint</span></div>
+                    <div class="cur-option" data-grade="B" onclick="selectGrade(this,'B','${d.id}','device',event)"><span class="grade-letter">B</span><span>Excellent</span></div>
+                    <div class="cur-option" data-grade="C" onclick="selectGrade(this,'C','${d.id}','device',event)"><span class="grade-letter">C</span><span>Good</span></div>
+                    <div class="cur-option" data-grade="D" onclick="selectGrade(this,'D','${d.id}','device',event)"><span class="grade-letter">D</span><span>Fair</span></div>
+                    <div class="cur-option" data-grade="E" onclick="selectGrade(this,'E','${d.id}','device',event)"><span class="grade-letter">E</span><span>Poor</span></div>
+                    <div class="cur-option" data-grade="F" onclick="selectGrade(this,'F','${d.id}','device',event)"><span class="grade-letter">F</span><span>Damaged / Parts</span></div>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label>Box Grade</label>
+                <div class="cur-select cur-select-grade" data-grade-kind="box" tabindex="0" onclick="toggleCurrencyDropdown(this, event)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleCurrencyDropdown(this,event)}">
+                  <input type="hidden" id="own-box-grade" value="">
+                  <span class="cur-current">
+                    <span class="grade-letter" id="own-box-grade-letter">—</span>
+                    <span class="grade-desc" id="own-box-grade-desc">Not graded</span>
+                  </span>
+                  <svg class="cur-arrow" viewBox="0 0 10 6"><path d="M0 0l5 6 5-6z" fill="currentColor"/></svg>
+                  <div class="cur-panel" role="listbox">
+                    <div class="cur-option" data-grade=""  onclick="selectGrade(this,'',  '${d.id}','box',event)"><span class="grade-letter">—</span><span>Not graded</span></div>
+                    <div class="cur-option" data-grade="S" onclick="selectGrade(this,'S','${d.id}','box',event)"><span class="grade-letter">S</span><span>Sealed</span></div>
+                    <div class="cur-option" data-grade="A" onclick="selectGrade(this,'A','${d.id}','box',event)"><span class="grade-letter">A</span><span>Mint</span></div>
+                    <div class="cur-option" data-grade="B" onclick="selectGrade(this,'B','${d.id}','box',event)"><span class="grade-letter">B</span><span>Excellent</span></div>
+                    <div class="cur-option" data-grade="C" onclick="selectGrade(this,'C','${d.id}','box',event)"><span class="grade-letter">C</span><span>Good</span></div>
+                    <div class="cur-option" data-grade="D" onclick="selectGrade(this,'D','${d.id}','box',event)"><span class="grade-letter">D</span><span>Fair</span></div>
+                    <div class="cur-option" data-grade="E" onclick="selectGrade(this,'E','${d.id}','box',event)"><span class="grade-letter">E</span><span>Poor</span></div>
+                    <div class="cur-option" data-grade="F" onclick="selectGrade(this,'F','${d.id}','box',event)"><span class="grade-letter">F</span><span>Torn / Missing</span></div>
+                    <div class="cur-option" data-grade="N" onclick="selectGrade(this,'N','${d.id}','box',event)"><span class="grade-letter">N</span><span>No Box</span></div>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label>Tested</label>
+                <label class="tested-toggle">
+                  <input type="checkbox" id="own-tested" onchange="ownershipFieldChanged('${d.id}'); updateTestedLabel(this)">
+                  <span class="tested-switch"></span>
+                  <span class="tested-state" id="own-tested-state">Not tested</span>
+                </label>
+              </div>
+              <div>
+                <label for="own-price">Price (AUD)</label>
+                <input type="number" step="0.01" min="0" max="1000000" id="own-price" placeholder="0.00" oninput="ownershipFieldChanged('${d.id}')">
+              </div>
+              <div>
+                <label for="own-price-intl" id="own-price-intl-label">Price (JPY)</label>
+                <input type="number" step="0.01" min="0" max="1000000" id="own-price-intl" placeholder="0.00" oninput="ownershipFieldChanged('${d.id}')">
+              </div>
+              <div>
+                <label for="own-shipping" id="own-shipping-label">Shipping (JPY)</label>
+                <input type="number" step="0.01" min="0" max="1000000" id="own-shipping" placeholder="0.00" oninput="ownershipFieldChanged('${d.id}')">
+              </div>
+              <div>
+                <label>Currency</label>
+                <div class="cur-select cur-select-currency" tabindex="0" onclick="toggleCurrencyDropdown(this, event)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleCurrencyDropdown(this,event)}">
+                  <input type="hidden" id="own-currency" value="JPY">
+                  <span class="cur-current">
+                    <svg class="cur-flag" id="own-currency-flag"><use href="#flag-JPY"/></svg>
+                    <span class="cur-code" id="own-currency-code">JPY</span>
+                  </span>
+                  <svg class="cur-arrow" viewBox="0 0 10 6"><path d="M0 0l5 6 5-6z" fill="currentColor"/></svg>
+                  <div class="cur-panel" role="listbox">
+                    <div class="cur-option" data-currency="JPY" onclick="selectCurrency(this,'JPY','${d.id}',event)"><svg class="cur-flag"><use href="#flag-JPY"/></svg><span>JPY</span></div>
+                    <div class="cur-option" data-currency="USD" onclick="selectCurrency(this,'USD','${d.id}',event)"><svg class="cur-flag"><use href="#flag-USD"/></svg><span>USD</span></div>
+                    <div class="cur-option" data-currency="EUR" onclick="selectCurrency(this,'EUR','${d.id}',event)"><svg class="cur-flag"><use href="#flag-EUR"/></svg><span>EUR</span></div>
+                    <div class="cur-option" data-currency="GBP" onclick="selectCurrency(this,'GBP','${d.id}',event)"><svg class="cur-flag"><use href="#flag-GBP"/></svg><span>GBP</span></div>
+                    <div class="cur-option" data-currency="NZD" onclick="selectCurrency(this,'NZD','${d.id}',event)"><svg class="cur-flag"><use href="#flag-NZD"/></svg><span>NZD</span></div>
+                    <div class="cur-option" data-currency="CAD" onclick="selectCurrency(this,'CAD','${d.id}',event)"><svg class="cur-flag"><use href="#flag-CAD"/></svg><span>CAD</span></div>
+                    <div class="cur-option" data-currency="CNY" onclick="selectCurrency(this,'CNY','${d.id}',event)"><svg class="cur-flag"><use href="#flag-CNY"/></svg><span>CNY</span></div>
+                    <div class="cur-option" data-currency="HKD" onclick="selectCurrency(this,'HKD','${d.id}',event)"><svg class="cur-flag"><use href="#flag-HKD"/></svg><span>HKD</span></div>
+                    <div class="cur-option" data-currency="KRW" onclick="selectCurrency(this,'KRW','${d.id}',event)"><svg class="cur-flag"><use href="#flag-KRW"/></svg><span>KRW</span></div>
+                    <div class="cur-option" data-currency="SGD" onclick="selectCurrency(this,'SGD','${d.id}',event)"><svg class="cur-flag"><use href="#flag-SGD"/></svg><span>SGD</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="notes-tabs">
+              <button type="button" class="notes-tab active" data-tab="notes" onclick="switchNotesTab(this,'notes')">Notes</button>
+              <button type="button" class="notes-tab" data-tab="auction" onclick="switchNotesTab(this,'auction')">Auction</button>
+              <button type="button" class="notes-tab" data-tab="links" onclick="switchNotesTab(this,'links')" title="Useful URLs (private)">Links</button>
+              <button type="button" class="notes-tab tab-public" data-tab="public" onclick="switchNotesTab(this,'public')" title="Visible to anyone with your share link">Public <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-left:3px;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+            </div>
+            <textarea id="own-note" class="notes-tab-content active" data-content="notes" maxlength="10000" placeholder="Where you got it, condition, serial number, anything you want to remember… (private)" oninput="ownershipFieldChanged('${d.id}')"></textarea>
+            <textarea id="own-auction" class="notes-tab-content" data-content="auction" maxlength="10000" placeholder="Auction URL, seller, lot number, bid amount, snipe details, 落札情報… (private)" oninput="ownershipFieldChanged('${d.id}')"></textarea>
+            <div id="own-links" class="notes-tab-content" data-content="links">
+              <div class="links-list" id="own-links-list" data-device-id="${d.id}"></div>
+              <button type="button" class="btn-tiny links-add" onclick="addLinkRow('${d.id}', true)">+ Add link</button>
+            </div>
+            <textarea id="own-public" class="notes-tab-content" data-content="public" maxlength="10000" placeholder="Notes visible to anyone with your share link — keep it suitable for public viewing." oninput="ownershipFieldChanged('${d.id}')"></textarea>
+            <div class="ownership-save-state" id="own-save-state"></div>
+          </section>
+          <section class="sect ownership-files-section" data-device-id="${d.id}">
+            <h3 class="sect-h">Receipts &amp; photos</h3>
+            <div class="ownership-files">
+              <div class="ownership-files-head">
+                <span class="ownership-files-tip">tip: paste clipboard image with Ctrl+V</span>
+                <div style="display:flex; gap:6px;">
+                  <label class="btn-tiny" style="cursor:pointer;">+ Receipt<input type="file" accept="image/*,application/pdf" multiple style="display:none;" onchange="handleFileUpload(event, 'receipt', '${d.id}')"></label>
+                  <label class="btn-tiny" style="cursor:pointer;">+ Photo<input type="file" accept="image/*" multiple style="display:none;" onchange="handleFileUpload(event, 'photo', '${d.id}')"></label>
+                  <button type="button" class="btn-tiny" onclick="pasteImageForDevice('${d.id}')" title="Paste image from clipboard (Ctrl+V also works)">
+                    <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:4px;"><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>Paste
+                  </button>
+                </div>
+              </div>
+              <div class="ownership-files-grid" id="own-files-grid"></div>
+            </div>
+          </section>` : ''}
+        </div>
+      </div>
+      <aside class="drawer-sidebar" style="--c:${s.color}">
+        <div class="sidebar-inner">
+          <section class="sect"><h3 class="sect-h">Facts</h3><div class="factbox">${facts}</div></section>
+          <div class="status-panel">
+            <div class="status-row"><span class="status-k">&gt; GAME:</span><span class="status-v">${d.name.toUpperCase()}</span></div>
+            <div class="status-row"><span class="status-k">&gt; SYSTEM:</span><span class="status-v">POKÉMON MINI</span></div>
+            <div class="status-row"><span class="status-k">&gt; GENRE:</span><span class="status-v">${(d.genre || '').toUpperCase()}</span></div>
+            <div class="status-row"><span class="status-k">&gt; RELEASE:</span><span class="status-v">${formatMonthYear(d.released).toUpperCase()}</span></div>
+            <div class="status-row"><span class="status-k">&gt; STATUS:</span><span class="status-v">ARCHIVED<span class="status-cursor">_</span></span></div>
+          </div>
+        </div>
+      </aside>
+    </div>
+    </div>
+    <div class="drawer-tab-content" data-tab-content="hardware">${hardwareTabHTML(d)}</div>`;
+
+  const _dm = $('#device-modal');
+  _dm.classList.remove('leaving');
+  void _dm.offsetWidth;
+  openOverlay('device-overlay');
+  // Desktop: slide the static console stage in on the left (same reveal + tilt as
+  // the G&W devices). Mobile: no stage (body.no-demo-device → quick slide).
+  if (_staticStage) showDeviceStage(d.id);
+  hydrateOwnershipPanel(d); // fill the "Your copy" panel from the vault (same wiring as G&W)
+  if (location.hash.replace(/^#/, '') !== '/device/' + d.id) history.pushState(null, '', '#/device/' + d.id);
 }
 
 // Real Pinterest-style masonry -- see the .grid/.series-group-grid CSS
@@ -14877,72 +16433,91 @@ window.addEventListener('resize', () => {
    Deliberately gated to fine-pointer, non-reduced-motion visitors; everyone
    else keeps the plain CSS lift (see .device-card:hover). */
 function initTileTilt() {
-  const gridEl = document.getElementById('device-grid');
-  if (!gridEl) return;
-
   const canHover = window.matchMedia('(hover: hover) and (pointer: fine)');
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
   const MAX_ROTATION = 12; // degrees, matching the mockup
   const SCALE = 1.05;
 
-  let activeCard = null;
-  let pendingEvent = null;
-  let rafId = 0;
+  // Bind the SAME delegated parallax to a grid. `isCoverflow()` lets each grid
+  // gate the tilt off in its OWN coverflow mode -- #device-grid on the G&W
+  // displayMode, #pm-device-grid on pmDisplayMode -- since the covers are
+  // positioned/rotated by positionCoverflow and an inline tilt would fight it.
+  // Each grid gets its own {activeCard, pendingEvent, rafId} closure so the two
+  // never interfere. Delegated + bound once at boot, so it survives every
+  // render()/renderPM() innerHTML rebuild (the grid element itself persists).
+  function bindTilt(gridEl, isCoverflow) {
+    if (!gridEl) return;
+    let activeCard = null;
+    let pendingEvent = null;
+    let rafId = 0;
 
-  function clearActive() {
-    if (activeCard) activeCard.style.transform = ''; // hand back to .device-card:hover
-    activeCard = null;
-    pendingEvent = null;
+    function clearActive() {
+      if (activeCard) activeCard.style.transform = ''; // hand back to .device-card:hover
+      activeCard = null;
+      pendingEvent = null;
+    }
+
+    // Coalesce to one write per frame: mousemove can fire many times per
+    // frame, and each apply() both reads layout and writes a style.
+    function apply() {
+      rafId = 0;
+      const e = pendingEvent;
+      pendingEvent = null;
+      if (!e || !activeCard || !activeCard.isConnected) { activeCard = null; return; }
+
+      const parent = activeCard.offsetParent;
+      if (!parent) return;
+      const pRect = parent.getBoundingClientRect();
+      const halfW = activeCard.offsetWidth / 2;
+      const halfH = activeCard.offsetHeight / 2;
+      if (!halfW || !halfH) return;
+      // Untransformed centre, in viewport coords.
+      const cx = pRect.left + activeCard.offsetLeft + halfW;
+      const cy = pRect.top + activeCard.offsetTop + halfH;
+
+      // -1..1 across the card, then clamped: the pointer can sit slightly
+      // outside the untransformed box while still over the scaled-up card,
+      // which would otherwise push rotation past the intended maximum.
+      const dx = Math.max(-1, Math.min(1, (e.clientX - cx) / halfW));
+      const dy = Math.max(-1, Math.min(1, (e.clientY - cy) / halfH));
+
+      // rotateX is negated: pointer BELOW centre (+dy) should tip the card's
+      // near edge toward the viewer, which is a negative X rotation.
+      activeCard.style.transform =
+        'perspective(1000px) scale(' + SCALE + ') ' +
+        'rotateX(' + (-dy * MAX_ROTATION).toFixed(2) + 'deg) ' +
+        'rotateY(' + (dx * MAX_ROTATION).toFixed(2) + 'deg)';
+    }
+
+    gridEl.addEventListener('mousemove', (e) => {
+      if (!canHover.matches || reduceMotion.matches) { clearActive(); return; }
+      // Cover Flow reuses .device-card markup for its live-emulator covers, but
+      // they're positioned/rotated by positionCoverflow -- the tile tilt writing
+      // an inline transform on them fights that and makes the cover shake.
+      if (isCoverflow()) { clearActive(); return; }
+      const card = e.target.closest('.device-card');
+      if (!card) { clearActive(); return; }
+      // NB: Pokémon Mini LIVE tiles get the SAME 3D parallax as every other tile.
+      // The 3D transform rasterises the tile into a GPU layer and bilinear-samples
+      // it (image-rendering:pixelated is ignored on a 3D layer), which used to blur
+      // the 96x64 LCD. Fixed at the source instead of by skipping the tilt: the PM
+      // preview canvas now has a high-res backing store (each LCD pixel drawn as an
+      // SxS nearest-neighbour block, see _pmCreateInstance), so bilinear sampling of
+      // that already-crisp image stays sharp under the tilt.
+      if (card !== activeCard) { clearActive(); activeCard = card; }
+      pendingEvent = e;
+      if (!rafId) rafId = requestAnimationFrame(apply);
+    });
+
+    // Leaving the grid entirely (mousemove stops firing, so the card would
+    // otherwise stay frozen mid-tilt).
+    gridEl.addEventListener('mouseleave', clearActive);
   }
 
-  // Coalesce to one write per frame: mousemove can fire many times per
-  // frame, and each apply() both reads layout and writes a style.
-  function apply() {
-    rafId = 0;
-    const e = pendingEvent;
-    pendingEvent = null;
-    if (!e || !activeCard || !activeCard.isConnected) { activeCard = null; return; }
-
-    const parent = activeCard.offsetParent;
-    if (!parent) return;
-    const pRect = parent.getBoundingClientRect();
-    const halfW = activeCard.offsetWidth / 2;
-    const halfH = activeCard.offsetHeight / 2;
-    if (!halfW || !halfH) return;
-    // Untransformed centre, in viewport coords.
-    const cx = pRect.left + activeCard.offsetLeft + halfW;
-    const cy = pRect.top + activeCard.offsetTop + halfH;
-
-    // -1..1 across the card, then clamped: the pointer can sit slightly
-    // outside the untransformed box while still over the scaled-up card,
-    // which would otherwise push rotation past the intended maximum.
-    const dx = Math.max(-1, Math.min(1, (e.clientX - cx) / halfW));
-    const dy = Math.max(-1, Math.min(1, (e.clientY - cy) / halfH));
-
-    // rotateX is negated: pointer BELOW centre (+dy) should tip the card's
-    // near edge toward the viewer, which is a negative X rotation.
-    activeCard.style.transform =
-      'perspective(1000px) scale(' + SCALE + ') ' +
-      'rotateX(' + (-dy * MAX_ROTATION).toFixed(2) + 'deg) ' +
-      'rotateY(' + (dx * MAX_ROTATION).toFixed(2) + 'deg)';
-  }
-
-  gridEl.addEventListener('mousemove', (e) => {
-    if (!canHover.matches || reduceMotion.matches) { clearActive(); return; }
-    // Cover Flow reuses .device-card markup for its live-emulator covers, but
-    // they're positioned/rotated by positionCoverflow -- the tile tilt writing
-    // an inline transform on them fights that and makes the cover shake.
-    if (displayMode === 'coverflow') { clearActive(); return; }
-    const card = e.target.closest('.device-card');
-    if (!card) { clearActive(); return; }
-    if (card !== activeCard) { clearActive(); activeCard = card; }
-    pendingEvent = e;
-    if (!rafId) rafId = requestAnimationFrame(apply);
-  });
-
-  // Leaving the grid entirely (mousemove stops firing, so the card would
-  // otherwise stay frozen mid-tilt).
-  gridEl.addEventListener('mouseleave', clearActive);
+  // The G&W collection grid and the parallel Pokémon Mini grid get identical
+  // parallax, each gated on its own coverflow flag.
+  bindTilt(document.getElementById('device-grid'), () => displayMode === 'coverflow');
+  bindTilt(document.getElementById('pm-device-grid'), () => pmDisplayMode === 'coverflow');
 }
 
 function render() {
@@ -14985,6 +16560,13 @@ function render() {
   // device (same search/series/sort filters), rendered full-bleed like tile
   // view. Its own short-circuit -- none of the grid/masonry logic applies.
   if (displayMode === 'coverflow') {
+    // Only build the G&W coverflow while the collection page is actually showing.
+    // The coverflow's cf-* ids and _cf* state are singletons shared with the
+    // Pokémon Mini coverflow — building a second (hidden) one here while the PM
+    // page owns the flow would collide on those ids. On other routes just clear.
+    if (state.route !== '/collection') { grid.innerHTML = ''; grid.className = ''; grid.style.height = ''; return; }
+    // Clear any leftover Pokémon Mini coverflow so the singleton cf-* ids stay unique.
+    const pg = $('#pm-device-grid'); if (pg) { pg.innerHTML = ''; pg.className = ''; pg.style.height = ''; }
     let list = DEVICES.slice();
     if (state.series) list = list.filter(d => d.series === state.series);
     if (q) list = list.filter(d => matchesQuery(d, q));
@@ -15084,6 +16666,8 @@ function mountGameTilePreviews() {
     if (gameKey && window.gnwMountTilePreview) window.gnwMountTilePreview(el, gameKey);
   });
   mountTftTilePreviews(); // the two ARM-twin (TFT) tiles, alongside the gnw sweep
+  mountPmTilePreviews();  // the Pokémon mini tiles (live attract, capped/observed)
+  mountTjTilePreviews();  // the Tetris Jr. tile (live clean-room device demo, lazy iframe)
   _tilesPausedForOverlay = false; // a fresh mount is the live state; keep the flag honest
 }
 
@@ -15100,6 +16684,7 @@ function pauseCollectionTiles() {
   _tilesPausedForOverlay = true;
   if (window.gnwStopTilePreview) window.gnwStopTilePreview();
   _tftSuspendAllTiles(); // suspend the ARM-twin tiles too (drawer runs its own instance)
+  _pmSuspendAllTiles();  // suspend the Pokémon mini tiles too
 }
 function resumeCollectionTiles() {
   if (!_tilesPausedForOverlay) return;
@@ -15115,6 +16700,13 @@ function resumeCollectionTiles() {
 function showDeviceStage(id) {
   const stage = document.getElementById('device-stage');
   if (!stage) return;
+  // Pokémon mini: when the game's ROM+BIOS are available, the tilted console
+  // stage shows the game running LIVE (like a G&W device reveal). When absent,
+  // fall through to the STATIC_PREVIEW_IDS branch below (the static console).
+  const _pmStageDev = ALL_DEVICES.find(x => x.id === id);
+  if (_pmStageDev && _pmStageDev.catalogue === 'pokemon-mini' && pmPlayable(_pmStageDev)) {
+    showPmDeviceStage(_pmStageDev, stage); return;
+  }
   // Static-preview devices (e.g. SMB Special): their gnw emulator Unit.png is the
   // ZOOMED play crop (screen + control panel), not the full flip-lid cabinet the
   // collection shows, so there's no clean LIVE full-device preview to mount here.
@@ -15124,11 +16716,28 @@ function showDeviceStage(id) {
   // the exact mechanism the catalogue tile uses -- so it can't regress to the
   // empty/black state the (unsupported) live path produced here.
   if (STATIC_PREVIEW_IDS.has(id)) {
-    const sd = DEVICES.find(x => x.id === id);
-    const heroSrc = (sd && sd.img && !BROKEN_IMG_KEYS.has(sd.img)) ? imgSrc(sd.img) : '';
+    const sd = ALL_DEVICES.find(x => x.id === id);
+    // Resolve via heroImgKey so the stage follows the (PM) view mode too — console
+    // in hardware, 3-D box art in boxart3d — instead of always the hardware d.img.
+    const heroKey = sd ? heroImgKey(sd) : null;
+    const heroSrc = (heroKey && !BROKEN_IMG_KEYS.has(heroKey)) ? imgSrc(heroKey) : '';
     if (!heroSrc) { hideDeviceStage(); return; }
     const sSeries = (sd && sd.series) || '';
     stage.innerHTML = `<div class="device-card stage-card static-stage" data-series="${sSeries}"><div class="img stage-img" style="--hero:url('${heroSrc.replace(/"/g, '&quot;')}')"></div></div>`;
+    // Specular sheen — the same moving highlight the live-emulator stage gets. The
+    // static stage has no .tile-emu to host it, so append it into the .stage-img
+    // and mask the streak to the device's OWN silhouette: the transparent hero PNG
+    // doubles as the alpha mask (--unit-mask). The .static-stage .stage-sheen CSS
+    // sizes that mask to match the hero's .img::after (center / auto 70%) so the
+    // glint never spills outside the console. Its X position (--sheen) is driven
+    // by initStageTilt as the cursor turns the device.
+    const _artEl = stage.querySelector('.stage-img');
+    if (_artEl) {
+      const _sheen = document.createElement('div');
+      _sheen.className = 'stage-sheen';
+      _sheen.style.setProperty('--unit-mask', `url("${heroSrc.replace(/"/g, '&quot;')}")`);
+      _artEl.appendChild(_sheen);
+    }
     stage.classList.remove('open');
     void stage.offsetWidth;
     stage.classList.add('open');
@@ -15138,6 +16747,8 @@ function showDeviceStage(id) {
   // The two TFT colour units use the ARM twin, not the gnw engine -- their big
   // reveal is a separate branch that mounts a live twin into its own slot.
   if (TFT_TWIN_UNITS[id]) { showTftDeviceStage(id, stage); return; }
+  // Tetris Jr.: our clean-room device demo (iframe), same slide-in + tilt reveal.
+  if (id === TJ_ID) { showTjDeviceStage(id, stage); return; }
   const g = (typeof GNW_EMULATED_GAMES !== 'undefined') ? GNW_EMULATED_GAMES[id] : null;
   if (!g) { hideDeviceStage(); return; }
   // Carry the series onto the stage-card so series-scoped tile CSS applies here
@@ -15247,6 +16858,7 @@ function hideDeviceStage() {
     if (!stage.classList.contains('open')) {
       if (window.gnwStopBigPreview) window.gnwStopBigPreview();
       _tftStopBigPreview(); // tear down the ARM-twin big reveal if this was a TFT device
+      _pmStopBigPreview();  // tear down the Pokémon mini big reveal if this was a PM device
       stage.innerHTML = '';
     }
   }, 1800); // after the 1.7s reverse animation finishes
@@ -15533,6 +17145,277 @@ function _tftStopBigPreview() {
   if (_tftBigInstance) { _tftBigInstance.stop(); _tftBigInstance = null; }
 }
 
+/* ===========================================================================
+   Pokémon mini LIVE tile/stage previews (muted, input-less attract/demo)
+   ---------------------------------------------------------------------------
+   Mirrors the ARM-twin (TFT) preview discipline above, adapted for the PM core:
+   • one lightweight instance PER game, keyed by id, persistent across grid
+     re-renders (rebind the new canvas, keep the core running) — like the twin;
+   • an IntersectionObserver (150px margin) runs ONLY on-screen tiles;
+   • a concurrency CAP (PM_MAX_LIVE) — a full S1C88+PRC core is heavier than an
+     SM510 and there are 10 tiles, so only the first N visible tiles run; the
+     rest show their static console until a slot frees (scroll recycles);
+   • ~22 fps preview cadence (not 60) and NO audio, NO input, NO EEPROM writes
+     (previews never touch the player's saves). The Play overlay is unchanged.
+   The core (play/pokemini/pokemini.wasm) is compiled ONCE and shared as a
+   WebAssembly.Module; each instance gets its own Instance (own linear memory),
+   so N games run independently — the same multi-instance property the play
+   path relies on. =========================================================== */
+const PM_MAX_LIVE = 100;               // no artificial cap: every ON-SCREEN tile runs (the observer already gates offscreen). 96x64 cores are tiny; measured smooth with all 10 live.
+const _PM_WIN_W = 96, _PM_WIN_H = 64;  // PM LCD dimensions
+// Tile/stage preview canvases get a HIGH-RES backing store: the 96x64 LCD is drawn
+// as SxS nearest-neighbour blocks (384x256 backing). The tile CSS display size is
+// unchanged; only the backing grows. This keeps the LCD crisp under the hover 3D
+// parallax tilt, which rasterises the tile to a GPU layer and bilinear-samples it
+// (image-rendering:pixelated is ignored on a 3D layer) — a high-res source survives
+// that sampling sharp. (The play window uses the module's own 96x64 canvas; it has
+// no tilt, so it needs none of this.)
+const _PM_SS = 4;
+let _pmWasmModulePromise = null;       // Promise<WebAssembly.Module> (compiled once)
+let _pmWasmModule = null;              // the resolved WebAssembly.Module (per-instance Instances)
+let _pmPreviewLoadPromise = null;      // resolves when BOTH wasm module + ROMs are ready
+
+function _pmPreviewLoad() {
+  if (_pmPreviewLoadPromise) return _pmPreviewLoadPromise;
+  if (!_pmWasmModulePromise) {
+    _pmWasmModulePromise = fetch('play/pokemini/pokemini.wasm')
+      .then(r => { if (!r.ok) throw new Error('pokemini.wasm HTTP ' + r.status); return r.arrayBuffer(); })
+      .then(b => WebAssembly.compile(b))
+      .then(m => { _pmWasmModule = m; return m; });
+  }
+  _pmPreviewLoadPromise = Promise.all([_pmWasmModulePromise, ensurePmRoms(), ensurePmDemoScripts(), ensurePmStates()])
+    .then(([mod, roms]) => {
+      if (!mod || !roms || !roms.bios) throw new Error('PM preview content unavailable');
+      return mod;
+    });
+  return _pmPreviewLoadPromise;
+}
+
+// One live PM preview instance. Owns its own wasm core + a rAF loop that runs
+// the CPU in ~45ms chunks (real-time, ~22fps) and blits the LCD. boot() is
+// deferred to start() (like the twin) so an instance that never enters the run
+// set costs nothing. suspend() keeps the core; stop() releases it.
+function _pmCreateInstance(id, canvas) {
+  const inst = { id: id, canvas: null, ctx: null, img: null, exp: null,
+                 booted: false, running: false, dead: false, _visible: false,
+                 _raf: 0, _last: 0, _observedEl: null,
+                 // Hybrid boot: render the live slot-in, then snap to the main screen
+                 // via the pre-captured state. demoScript is kept only for the capture
+                 // fallback (not applied live). Demo tiles keep the clean captured EEPROM.
+                 demoScript: pmDemoScriptFor(id),
+                 stateU8: (function () { const b = pmBootStateB64For(id); return b ? _pmB64ToU8(b) : null; })(),
+                 _snapped: false };
+
+  function boot() {
+    const mod = _pmWasmModule, roms = _pmRomsCache;
+    const exp = new WebAssembly.Instance(mod, { env: {} }).exports;
+    exp.pm_init(); exp.pm_reset();
+    const bios = _pmB64ToU8(roms.bios), rom = _pmB64ToU8(roms[id]);
+    const n = Math.min(bios.length, exp.pm_bios_size());
+    new Uint8Array(exp.memory.buffer, exp.pm_bios_ptr(), n).set(bios.subarray(0, n));
+    new Uint8Array(exp.memory.buffer, exp.pm_rom_ptr(), rom.length).set(rom);
+    exp.pm_load(rom.length);
+    exp.pm_reset();
+    exp.pm_set_datetime((Date.now() / 1000) >>> 0);   // seed RTC from host clock (no EEPROM restore for previews)
+    inst.exp = exp; inst.booted = true;
+  }
+
+  function blit() {
+    if (!inst.ctx || !inst.exp) return;
+    const exp = inst.exp, d = inst.img.data;
+    if (exp.pm_color_enabled && exp.pm_color_enabled()) {
+      const idx = new Uint8Array(exp.memory.buffer, exp.pm_color_fb_ptr(), _PM_WIN_W * _PM_WIN_H);
+      const pal = new Uint32Array(exp.memory.buffer, exp.pm_color_palette_ptr(), 256);
+      const out = new Uint32Array(inst.img.data.buffer);
+      for (let i = 0; i < _PM_WIN_W * _PM_WIN_H; i++) out[i] = pal[idx[i]];
+    } else {
+      const s = new Uint8Array(exp.memory.buffer, exp.pm_fb_ptr(), _PM_WIN_W * _PM_WIN_H);
+      for (let i = 0; i < _PM_WIN_W * _PM_WIN_H; i++) { const on = s[i] / 255;
+        d[i*4] = Math.round(0xb0*(1-on)+0x10*on); d[i*4+1] = Math.round(0xc0*(1-on)+0x20*on);
+        d[i*4+2] = Math.round(0x50*(1-on)+0x10*on); d[i*4+3] = 255; }
+    }
+    // Draw the 96x64 frame into the small offscreen, then NEAREST-NEIGHBOUR upscale
+    // it to the high-res canvas backing (crisp SxS blocks) — see _PM_SS.
+    inst._offCtx.putImageData(inst.img, 0, 0);
+    inst.ctx.drawImage(inst._off, 0, 0, _PM_WIN_W, _PM_WIN_H, 0, 0, inst.canvas.width, inst.canvas.height);
+    if (inst.canvas && !inst.canvas.classList.contains('ready')) inst.canvas.classList.add('ready');
+  }
+
+  // After the live slot-in animation reaches PM_SLOTIN_FRAMES, snap to the main
+  // screen: load the pre-captured boot state (re-seed RTC to host time). If no
+  // shipped state or the load throws, fall back to a one-time headless run of the
+  // demoScript (captureFallback). Runs once (inst._snapped).
+  function snapToMain() {
+    if (inst._snapped || !inst.exp) return;
+    inst._snapped = true;
+    const exp = inst.exp;
+    try {
+      if (inst.stateU8 && inst.stateU8.length) {
+        new Uint8Array(exp.memory.buffer, exp.pm_boot_state_ptr(), inst.stateU8.length).set(inst.stateU8);
+        exp.pm_boot_state_load(inst.stateU8.length);
+        exp.pm_set_datetime((Date.now() / 1000) >>> 0);   // clock = current host time
+        return;
+      }
+    } catch (e) { /* fall through to capture */ }
+    captureFallback();
+  }
+  // Fallback only: fast-run the demoScript (headless, no render) to the main screen.
+  function captureFallback() {
+    const exp = inst.exp, script = inst.demoScript;
+    if (!script) return;                                  // no macro (e.g. Zany) -> keep booting live
+    const last = script.reduce((m, s) => Math.max(m, s.frame + (s.hold || 6)), 0);
+    let guard = 0;
+    while (Number(exp.pm_prc_frame_count()) < last + 300 && guard++ < 200000 && !exp.pm_cpu_trapped()) {
+      const f = Number(exp.pm_prc_frame_count()); let mask = 0;
+      for (const s of script) if (f >= s.frame && f < s.frame + (s.hold || 6)) mask |= s.keys;
+      exp.pm_set_keys(mask);
+      exp.pm_run_cycles(8000);
+    }
+    exp.pm_set_keys(0);
+    exp.pm_set_datetime((Date.now() / 1000) >>> 0);
+  }
+
+  function frame(now) {
+    if (!inst.running || inst.dead) return;
+    if (!inst._last) inst._last = now;
+    const since = now - inst._last;
+    if (since >= 45) {                              // ~22fps work cap (previews don't need 60)
+      let dt = since / 1000; if (dt > 0.05) dt = 0.05;
+      try {
+        if (!inst.exp.pm_cpu_trapped()) inst.exp.pm_run_cycles(Math.floor(dt * 4_000_000));
+        if (!inst._snapped && Number(inst.exp.pm_prc_frame_count()) >= PM_SLOTIN_FRAMES) snapToMain();
+        blit();
+      } catch (e) { inst.dead = true; return; }
+      inst._last = now;
+    }
+    inst._raf = requestAnimationFrame(frame);
+  }
+
+  inst.bind = function (cv) {
+    inst.canvas = cv;
+    // High-res backing store (display CSS size is unchanged — set by .pm-emu-screen).
+    cv.width = _PM_WIN_W * _PM_SS; cv.height = _PM_WIN_H * _PM_SS;
+    inst.ctx = cv.getContext('2d');
+    inst.ctx.imageSmoothingEnabled = false;         // crisp nearest-neighbour upscale
+    // small offscreen the raw 96x64 frame is written to before the upscale blit
+    if (!inst._off) { inst._off = document.createElement('canvas'); inst._off.width = _PM_WIN_W; inst._off.height = _PM_WIN_H; inst._offCtx = inst._off.getContext('2d'); }
+    if (!inst.img) inst.img = inst._offCtx.createImageData(_PM_WIN_W, _PM_WIN_H);
+    if (inst.exp) cv.classList.remove('ready');     // fresh canvas: refade on next paint
+  };
+  inst.start = function () {
+    if (inst.running || inst.dead) return;
+    if (!inst.booted) { try { boot(); } catch (e) { inst.dead = true; return; } }
+    inst.running = true; inst._last = 0;
+    inst._raf = requestAnimationFrame(frame);
+  };
+  inst.suspend = function () {
+    inst.running = false;
+    if (inst._raf) { cancelAnimationFrame(inst._raf); inst._raf = 0; }
+  };
+  inst.stop = function () {
+    inst.suspend(); inst.dead = true;
+    inst.exp = null; inst.ctx = null; inst.img = null; inst.canvas = null;   // release the core
+    inst._off = null; inst._offCtx = null;                                   // + the upscale offscreen
+  };
+
+  inst.bind(canvas);
+  return inst;
+}
+
+// Persistent tile instances (keyed by id) + the on-screen set, kept across grid
+// re-renders so scrolling/search doesn't restart a game mid-attract.
+const _pmTileInstances = {};
+const _pmVisible = new Set();
+let _pmObserver = null;
+function _pmGetObserver() {
+  if (_pmObserver) return _pmObserver;
+  _pmObserver = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      const id = e.target.dataset.pm; if (!id) return;
+      if (e.isIntersecting) _pmVisible.add(id); else _pmVisible.delete(id);
+    });
+    _pmSchedule();
+  }, { rootMargin: '150px' });
+  return _pmObserver;
+}
+// Run only visible tiles, capped at PM_MAX_LIVE, preferring already-running ones
+// (so scrolling doesn't thrash a running game). Everything else suspends.
+function _pmSchedule() {
+  if (_tilesPausedForOverlay) { Object.keys(_pmTileInstances).forEach(id => { const i = _pmTileInstances[id]; if (i) i.suspend(); }); return; }
+  const runSet = new Set();
+  _pmVisible.forEach(id => { const i = _pmTileInstances[id]; if (i && !i.dead && i.running && runSet.size < PM_MAX_LIVE) runSet.add(id); });
+  _pmVisible.forEach(id => { const i = _pmTileInstances[id]; if (i && !i.dead && runSet.size < PM_MAX_LIVE && !runSet.has(id)) runSet.add(id); });
+  Object.keys(_pmTileInstances).forEach(id => { const i = _pmTileInstances[id]; if (!i || i.dead) return; if (runSet.has(id)) i.start(); else i.suspend(); });
+}
+function _pmSuspendAllTiles() { Object.keys(_pmTileInstances).forEach(id => { const i = _pmTileInstances[id]; if (i) i.suspend(); }); }
+
+// Sweep after each render: bind each PM tile canvas to its (persistent) instance
+// and observe it; suspend instances whose tile is gone. Mirrors mountTftTilePreviews.
+function mountPmTilePreviews() {
+  const canvases = document.querySelectorAll('.pm-emu-screen[data-pm]');
+  const present = {};
+  canvases.forEach(cv => { present[cv.dataset.pm] = true; });
+  // Suspend instances whose tile isn't in this render (view switch / filtered out).
+  Object.keys(_pmTileInstances).forEach(id => { if (!present[id]) { const i = _pmTileInstances[id]; if (i) { _pmVisible.delete(id); i.suspend(); } } });
+  if (!canvases.length) return;
+  _pmPreviewLoad().then(() => {
+    canvases.forEach(cv => {
+      const id = cv.dataset.pm;
+      if (!document.body.contains(cv)) return;      // tile re-rendered away before content loaded
+      let inst = _pmTileInstances[id];
+      if (!inst || inst.dead) { inst = _pmCreateInstance(id, cv); _pmTileInstances[id] = inst; }
+      else inst.bind(cv);
+      if (inst._observedEl && inst._observedEl !== cv) _pmGetObserver().unobserve(inst._observedEl);
+      cv.__pmInst = inst; inst._observedEl = cv;
+      _pmGetObserver().observe(cv);
+    });
+    _pmSchedule();
+  }).catch(() => { /* silent — tiles keep the static console */ });
+}
+
+// The drawer's big reveal uses its OWN instance (like _tftBigInstance / gnw's
+// _bigPreview), always running while mounted, torn down by hideDeviceStage().
+let _pmBigInstance = null;
+function _pmMountBigPreview(canvas, id) {
+  _pmStopBigPreview();
+  _pmPreviewLoad().then(() => {
+    if (!document.body.contains(canvas)) return;    // drawer closed before content loaded
+    _pmBigInstance = _pmCreateInstance(id, canvas);
+    _pmBigInstance._visible = true;
+    _pmBigInstance.start();
+  }).catch(() => {});
+}
+function _pmStopBigPreview() {
+  if (_pmBigInstance) { _pmBigInstance.stop(); _pmBigInstance = null; }
+}
+
+// PM branch of showDeviceStage(): the tilted colour console with the game
+// running LIVE on its screen (canvas carries NO data-pm so the tile sweep skips
+// it). Same slide-in + cursor tilt + specular sheen as the gnw/TFT stages.
+function showPmDeviceStage(d, stage) {
+  const artSrc = imgSrc(pmConsoleKey(d));
+  stage.innerHTML =
+    '<div class="device-card stage-card" data-series="' + d.series + '"><div class="img stage-img">' +
+      '<div class="pm-emu">' +
+        '<img class="pm-emu-art" src="' + artSrc.replace(/"/g, '&quot;') + '" alt="">' +
+        '<canvas class="pm-emu-screen" width="' + _PM_WIN_W + '" height="' + _PM_WIN_H + '"></canvas>' +
+      '</div>' +
+    '</div></div>';
+  stage.classList.remove('open');
+  void stage.offsetWidth;
+  stage.classList.add('open');
+  initStageTilt(stage.querySelector('.stage-card'));
+  const emuEl = stage.querySelector('.pm-emu');
+  if (emuEl) {
+    const sheen = document.createElement('div');
+    sheen.className = 'stage-sheen';
+    sheen.style.setProperty('--unit-mask', 'url("' + artSrc.replace(/"/g, '&quot;') + '")');
+    emuEl.appendChild(sheen);
+  }
+  const cv = stage.querySelector('.pm-emu-screen');
+  if (cv) _pmMountBigPreview(cv, d.id);
+}
+
 // TFT branch of showDeviceStage(): builds the big reveal with a live twin
 // canvas (NO data-unit, so mountTftTilePreviews()'s sweep skips it) and plays
 // the same slide-in + cursor tilt the gnw stage uses.
@@ -15563,6 +17446,37 @@ function showTftDeviceStage(id, stage) {
   if (cv) _tftMountBigPreview(cv, unit);
 }
 
+// Tetris Jr. desktop stage reveal: our clean-room device demo in an iframe (src
+// set immediately — a deliberate open). No canvas twin, no sheen mask (the live
+// iframe IS the device); same slide-in + cursor tilt as the other reveals.
+function showTjDeviceStage(id, stage) {
+  stage.innerHTML =
+    '<div class="device-card stage-card"><div class="img stage-img">' + tjEmuHTML(true) + '</div></div>';
+  stage.classList.remove('open');
+  void stage.offsetWidth;                           // restart the slide-in keyframe cleanly
+  stage.classList.add('open');
+  initStageTilt(stage.querySelector('.stage-card'));
+}
+
+// The lazily-loaded live Tetris Jr. tile demo. One tile; an IntersectionObserver
+// sets the iframe src when it scrolls on-screen and clears it when it leaves, so
+// our engine never runs off-screen (mirrors the twin/PM tile discipline).
+let _tjTileObserver = null;
+function _tjGetObserver() {
+  if (_tjTileObserver) return _tjTileObserver;
+  _tjTileObserver = new IntersectionObserver((entries) => {
+    entries.forEach(en => {
+      const f = en.target;
+      if (en.isIntersecting) { if (!f.getAttribute('src')) f.src = TJ_DEMO_SRC; }
+      else if (f.getAttribute('src')) { f.removeAttribute('src'); }   // pause the live screens off-screen; the artwork stays put
+    });
+  }, { rootMargin: '150px' });
+  return _tjTileObserver;
+}
+function mountTjTilePreviews() {
+  document.querySelectorAll('iframe.tj-emu-screen[data-tj]').forEach(f => _tjGetObserver().observe(f));
+}
+
 // Mobile (≤1200px) counterpart to showDeviceStage(): mount the SAME live demo
 // INLINE as the drawer's first image (#device-modal .device-modal-demo) instead
 // of the big left-side reveal, which is hidden below 1200px. Flat — no tilt, no
@@ -15571,6 +17485,10 @@ function showTftDeviceStage(id, stage) {
 function mountDrawerDemo(id) {
   const host = document.querySelector('#device-modal .device-modal-demo');
   if (!host) return;
+  if (id === TJ_ID) {
+    host.innerHTML = '<div class="device-card"><div class="img">' + tjEmuHTML(true) + '</div></div>';
+    return;
+  }
   if (TFT_TWIN_UNITS[id]) {
     const unit = TFT_TWIN_UNITS[id];
     host.innerHTML =
@@ -15636,7 +17554,11 @@ function renderCoverflow(grid, list) {
   if (!window._cfResizeBound) {
     window._cfResizeBound = true;
     window.addEventListener('resize', () => {
-      if (displayMode === 'coverflow' && _cfCovers.length) positionCoverflow();
+      // Reposition whichever coverflow is live — the G&W one (collection route)
+      // or the Pokémon Mini one (its own route + pmDisplayMode).
+      const cfLive = (displayMode === 'coverflow' && state.route === '/collection') ||
+                     (typeof pmDisplayMode !== 'undefined' && pmDisplayMode === 'coverflow' && state.route === '/pokemon-mini');
+      if (cfLive && _cfCovers.length) positionCoverflow();
     });
   }
   // Same image-loading + live-emulator boot the other views run: probe the
@@ -15819,13 +17741,23 @@ function bindCoverflowEvents() {
 
 function getDeviceImages(d) {
   const fromMap = (typeof DEVICE_IMAGES !== 'undefined' && DEVICE_IMAGES[d.id]) || null;
-  return fromMap ? fromMap.slice() : (d.img ? [d.img] : []);
+  const arr = fromMap ? fromMap.slice() : (d.img ? [d.img] : []);
+  // Tetris Jr.: show the powered-off (polariser + black button) variant in the
+  // gallery/hero/lightbox once it's been derived; the live tile/stage keep the
+  // plain artwork as their overlay base.
+  if (d.id === TJ_ID && imgIsEmbedded(TJ_OFF_KEY)) {
+    return arr.map(k => k === TJ_ART_KEY ? TJ_OFF_KEY : k);
+  }
+  return arr;
 }
 
 function openDevice(id) {
-  const d = DEVICES.find(x => x.id === id);
+  const d = ALL_DEVICES.find(x => x.id === id);
   if (!d) return;
   pauseCollectionTiles(); // the drawer buries the grid — stop its live previews
+  // Pokémon Mini cartridges get their own simpler two-tab (Info + Hardware)
+  // drawer — no emulation/source/play, no ownership/market machinery.
+  if (d.catalogue === 'pokemon-mini') { openPMDevice(d); return; }
   // Device-less drawers (non-emulated units — models TR-66 / YM-901 / RGW-001,
   // etc.) render nothing on the left (showDeviceStage bails when the id isn't in
   // GNW_EMULATED_GAMES). Mark the body so the CSS gives the drawer a quick slide
@@ -15836,7 +17768,7 @@ function openDevice(id) {
   // (SMB Special) are deliberately excluded -- their emulator Unit.png is the
   // ZOOMED play crop, not the full flip-lid cabinet -- so they get a STATIC
   // full-cabinet stage instead (see showDeviceStage's STATIC_PREVIEW_IDS branch).
-  const _liveDemo = (((typeof GNW_EMULATED_GAMES !== 'undefined') && !!GNW_EMULATED_GAMES[id]) && !STATIC_PREVIEW_IDS.has(id)) || !!TFT_TWIN_UNITS[id];
+  const _liveDemo = (((typeof GNW_EMULATED_GAMES !== 'undefined') && !!GNW_EMULATED_GAMES[id]) && !STATIC_PREVIEW_IDS.has(id)) || !!TFT_TWIN_UNITS[id] || id === TJ_ID;
   // Static-preview devices DO get a left device on DESKTOP (the static cabinet),
   // so they keep the device-synced drawer timing there; on mobile the stage is
   // hidden and the cabinet shows as the drawer hero, so fall back to the quick
@@ -15871,9 +17803,12 @@ function openDevice(id) {
   const factsMerged = Object.assign({}, GENRES[d.id] ? { Genre: GENRES[d.id] } : {}, d.facts || {}, { Released: releasedFull });
   const facts = Object.entries(factsMerged).map(([k,v]) => `<div class="row"><span class="k">${k}</span><span class="v">${v}</span></div>`).join('');
   const releaseDisp = releasedFull.toUpperCase();
-  // Lightbox indexing: box art (if present) is prepended at index 0
-  const boxOffset = BOX_ART_IMAGES[d.id] ? 1 : 0;
-  const heroIdx = (viewMode === 'boxart' && BOX_ART_IMAGES[d.id]) ? 0 : boxOffset;
+  // Lightbox indexing BY KEY (robust to box art overlapping the device images —
+  // e.g. Tetris Jr., whose one photo is registered as both). Each hero/thumb opens
+  // the lightbox at that exact image's position, so the click shows the right
+  // picture and the lightbox strip order matches the drawer's.
+  const _lbKeys = lightboxKeys(d);
+  const heroIdx = Math.max(0, _lbKeys.indexOf(heroKey));
   const heroHTML = missing
     ? `<div class="device-modal-img missing"><div style="height:100%;display:flex;align-items:center;justify-content:center;color:#2a3242;letter-spacing:.2em;text-transform:uppercase;font-size:13px;text-align:center;padding:0 24px;">${missingMsg}</div></div>`
     : `<div class="device-modal-img"${heroDataAttr} style="${heroStyle}" onclick="openLightbox('${d.id}', ${heroIdx})"></div>`;
@@ -15885,7 +17820,7 @@ function openDevice(id) {
     : '';
   const stripHTML = (imgs.length > 1 || _mobileDemo)
     ? `<div class="gallery-strip" style="--c:${s.color}">${_demoThumb}${imgs.map((k, i) => `
-        <div class="gallery-thumb" style="background-image:url('${imgSrc(k)}')" onclick="openLightbox('${d.id}', ${i + boxOffset})" title="Photo ${i+1} of ${imgs.length}"><span class="thumb-idx">${i+1}</span></div>
+        <div class="gallery-thumb" style="background-image:url('${imgSrc(k)}')" onclick="openLightbox('${d.id}', ${Math.max(0, _lbKeys.indexOf(k))})" title="Photo ${i+1} of ${imgs.length}"><span class="thumb-idx">${i+1}</span></div>
       `).join('')}</div>`
     : '';
   // Mobile: the live demo becomes the drawer's primary image (mounted after render).
@@ -15916,7 +17851,7 @@ function openDevice(id) {
             <span class="pill series-pill" onclick="closeOverlay('device-overlay');route('/collection/${s.id}')" style="cursor:pointer">${s.name}</span>
             <span class="pill model">${d.model}</span>
             <span class="pill">${formatMonthYear(d.released)}</span>
-            ${(GAME_SLUGS[d.id] || GNW_EMULATED_GAMES[d.id] || TFT_TWIN_UNITS[d.id]) ? `<button class="play-now" onclick="openPlay('${d.id}', event)" title="${(GNW_EMULATED_GAMES[d.id] || TFT_TWIN_UNITS[d.id]) ? 'Play the built-in emulator' : 'Play on RetroFab (opens in new tab)'}" aria-label="Play"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="11" x2="10" y2="11"/><line x1="8" y1="9" x2="8" y2="13"/><line x1="15" y1="12" x2="15.01" y2="12"/><line x1="18" y1="10" x2="18.01" y2="10"/><path d="M17.32 5H6.68a4 4 0 0 0-3.978 3.59c-.006.052-.01.101-.017.152C2.604 9.416 2 14.456 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.414-1.414A2 2 0 0 1 9.828 16h4.344a2 2 0 0 1 1.414.586L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.545-.604-6.584-.685-7.258C21.166 6.83 19.51 5 17.32 5z"/></svg><span>Play Now!</span></button>` : ''}
+            ${(GAME_SLUGS[d.id] || GNW_EMULATED_GAMES[d.id] || TFT_TWIN_UNITS[d.id] || d.id === 'prototype-tetris-jr') ? `<button class="play-now" onclick="openPlay('${d.id}', event)" title="${(GNW_EMULATED_GAMES[d.id] || TFT_TWIN_UNITS[d.id] || d.id === 'prototype-tetris-jr') ? 'Play the built-in emulator' : 'Play on RetroFab (opens in new tab)'}" aria-label="Play"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="11" x2="10" y2="11"/><line x1="8" y1="9" x2="8" y2="13"/><line x1="15" y1="12" x2="15.01" y2="12"/><line x1="18" y1="10" x2="18.01" y2="10"/><path d="M17.32 5H6.68a4 4 0 0 0-3.978 3.59c-.006.052-.01.101-.017.152C2.604 9.416 2 14.456 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.414-1.414A2 2 0 0 1 9.828 16h4.344a2 2 0 0 1 1.414.586L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.545-.604-6.584-.685-7.258C21.166 6.83 19.51 5 17.32 5z"/></svg><span>Play Now!</span></button>` : ''}
             ${(MANUAL_BOOKLETS[d.id] || MANUALS[d.id]) ? `<button class="manual-btn" onclick="openManual('${d.id}', event)" title="View the instruction manual" aria-label="View manual"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg><span>Manual</span></button>` : ''}
           </div>
           <div class="drawer-title-row">
@@ -16125,9 +18060,18 @@ function openDevice(id) {
 let lightboxState = { keys: [], idx: 0 };
 
 function lightboxKeys(d) {
+  // Pokémon Mini: zoom whatever the current PM view mode is showing — the console
+  // (hardware) or the game's 3-D box art (boxart3d) — a single image, no strip.
+  if (d.catalogue === 'pokemon-mini') {
+    const k = heroImgKey(d); // heroImgKey is PM-aware (respects pmViewMode)
+    return k ? [k] : [];
+  }
   const hw = getDeviceImages(d);
   const ba = BOX_ART_IMAGES[d.id];
-  return ba ? [ba, ...hw.filter(k => k !== ba)] : hw;
+  // Prepend the box art ONLY when it's a distinct image. If it's already one of
+  // the device images (e.g. Tetris Jr., whose single photo doubles as its box-art
+  // stand-in), keep the device-image order so the strip matches the drawer.
+  return (ba && !hw.includes(ba)) ? [ba, ...hw] : hw;
 }
 
 // How large the image box is ever allowed to get. The CSS carries these
@@ -16221,7 +18165,9 @@ addEventListener('resize', () => {
 });
 
 function openLightbox(deviceId, idx) {
-  const d = DEVICES.find(x => x.id === deviceId);
+  // ALL_DEVICES (not DEVICES) so Pokémon Mini ids resolve too — DEVICES is a
+  // subset of ALL_DEVICES, so every G&W id still resolves unchanged.
+  const d = ALL_DEVICES.find(x => x.id === deviceId);
   if (!d) return;
   showLightbox(lightboxKeys(d), idx);
 }
@@ -16349,6 +18295,7 @@ function closeOverlay(id) {
     if (dm) dm.classList.add('leaving');
   }
   if (id === 'play-overlay') { _openPlayKey = null; gnwExitDevMode(); }
+  if (id === 'pm-play-overlay') { _pmTeardownActive(); }   // stop the PM core (rAF/audio) + flush EEPROM
   $('#'+id).classList.remove('open');
   // Bring the buried collection previews back once nothing's covering the grid.
   // Skipped when this close is only a hand-off into another overlay (e.g. the drawer
@@ -18109,21 +20056,10 @@ function openTftPlay(deviceId) {
   const launch = function () {
     if (frame) {
       frame.style.display = 'block';
-      frame.style.height = '';
-      frame.onload = function () {
-        // Fit the window to the device: measure the control legend's bottom once
-        // the art has laid out, so there's no excess room below (like gnw modals).
-        setTimeout(function () {
-          try {
-            const doc = frame.contentDocument;
-            const legend = doc && doc.querySelector('.pcontrols');
-            if (legend) frame.style.height = Math.ceil(legend.getBoundingClientRect().bottom + 42) + 'px';
-          } catch (e) {}
-        }, 350);
-      };
+      frame.onload = null;   // no post-load resize — the CSS height is a fixed fit
       frame.src = 'play/' + unit + '/index.html';   // frozen production copy, NOT the live pilot sandbox
     }
-    openOverlay('tft-play-overlay');                 // .open triggers the zoom-in reveal
+    openOverlay('tft-play-overlay');                 // .open triggers the zoom-in reveal at full size
   };
   // Zoom in only AFTER the drawer curtain finishes sliding out (mirror openPlay).
   const drawer = document.getElementById('device-overlay');
@@ -18148,6 +20084,63 @@ window.closeTftPlay = function () {
   if (panel) panel.style.display = 'none';
   closeOverlay('tft-play-overlay');
   if (frame) { frame.style.display = 'block'; frame.src = 'about:blank'; }   // tear the pilot's worker + audio down
+};
+
+// ---- Tetris Jr. (TR-66) play: open the clean-room JS recreation in an iframe. A
+// prototype with no ROM/firmware, so this is the TFT-twin iframe launch minus the
+// custom-firmware UI. Routed from openPlay() for deviceId 'prototype-tetris-jr'.
+function openTjPlay(deviceId) {
+  const d = DEVICES.find(x => x.id === deviceId);
+  const title = document.getElementById('tj-play-title');
+  if (title && d) title.innerHTML = d.name + ' <span style="font-weight:400;font-size:13px;color:var(--muted)">' + d.model + '</span>';
+  pauseCollectionTiles();
+  const frame = document.getElementById('tj-play-frame');
+  const launch = function () {
+    if (frame) {
+      frame.style.display = 'block';
+      // A tall FIXED iframe (not content-fit): the play page's #device is
+      // height-driven (like the gnw modal's .play-device max-height:82vh) so the
+      // clamshell renders at the SAME size as the other multi-screen titles. A
+      // vh-sized device inside a content-fit iframe would collapse, so drive the
+      // height from the window, not the content.
+      const fit = function () {
+        // Fill the viewport BELOW the modal header (minus a small margin) so the
+        // whole modal fits with NO scroll and the device sizes like DK-52's. Using
+        // 0.9*innerHeight ignored the header and overflowed the modal past the viewport.
+        const top = frame.getBoundingClientRect().top;
+        // Leave room for the overlay's 40px bottom padding (top already includes
+        // the overlay top-padding + modal header), + a small margin, so nothing overflows.
+        frame.style.height = Math.max(360, Math.round(window.innerHeight - (top > 0 ? top : 110) - 46)) + 'px';
+      };
+      fit();
+      // Focus the iframe on load so the arrow keys drive the game immediately
+      // instead of scrolling the modal (the play page keeps focus from there).
+      frame.onload = function () { fit(); try { frame.contentWindow.focus(); } catch (e) {} };
+      frame.src = 'play/tetrisjr/index.html';
+    }
+    openOverlay('tj-play-overlay');
+  };
+  // If launched from an open drawer, let it slide out first (mirror openTftPlay).
+  const drawer = document.getElementById('device-overlay');
+  const dm = document.getElementById('device-modal');
+  if (drawer && drawer.classList.contains('open')) {
+    closeOverlay('device-overlay');
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce || !dm) { launch(); return; }
+    let launched = false;
+    const go = () => { if (launched) return; launched = true; dm.removeEventListener('animationend', onEnd); launch(); };
+    const onEnd = (e) => { if (e.target === dm && (e.animationName === 'device-drawer-hide' || e.animationName === 'device-drawer-hide-fast')) go(); };
+    dm.addEventListener('animationend', onEnd);
+    setTimeout(go, 1850);
+  } else {
+    launch();
+  }
+}
+window.openTjPlay = openTjPlay;
+window.closeTjPlay = function () {
+  const frame = document.getElementById('tj-play-frame');
+  closeOverlay('tj-play-overlay');
+  if (frame) frame.src = 'about:blank';   // tear the pilot's rAF + audio down
 };
 
 // ---- Open custom firmware (TFT play window): boot a user-supplied STM32H7B0 build (e.g. retro-go NES) --
@@ -18207,6 +20200,7 @@ window.addEventListener('message', function (ev) {
 function openPlay(deviceId, event) {
   if (event) { event.stopPropagation(); event.preventDefault(); }
   if (TFT_TWIN_UNITS[deviceId]) { openTftPlay(deviceId); return; }
+  if (deviceId === 'prototype-tetris-jr') { openTjPlay(deviceId); return; }   // clean-room JS recreation (iframe, no ROM/firmware)
   const emuGame = GNW_EMULATED_GAMES[deviceId];
   if (emuGame) {
     // Actually reveal the play window. Kept as a closure so it can run either
@@ -18297,7 +20291,7 @@ function applyHashRoute(h) {
   else if (h.startsWith('/device/')) { state.route = '/collection'; deepDeviceId = decodeURIComponent(h.slice('/device/'.length)); }
   else if (h.startsWith('/play/'))   { state.route = '/collection'; deepGameKey  = decodeURIComponent(h.slice('/play/'.length)); }
   renderRoute();
-  if (deepDeviceId && deepDeviceId !== _openDeviceId && DEVICES.some(d => d.id === deepDeviceId)) {
+  if (deepDeviceId && deepDeviceId !== _openDeviceId && ALL_DEVICES.some(d => d.id === deepDeviceId)) {
     openDevice(deepDeviceId);
   }
   if (deepGameKey && deepGameKey !== _openPlayKey && window.openPlayModal) {
@@ -19647,9 +21641,24 @@ function loadViewMode() {
 function saveViewMode() {
   try { localStorage.setItem(VIEW_MODE_KEY, viewMode); } catch (e) {}
 }
+// Which view mode governs a given device's imagery. Pokémon Mini has its OWN
+// toggle (pmViewMode: 'hardware' | 'boxart3d'); every other device uses the
+// global G&W viewMode. Everything that picks a device image (tiles, drawer hero,
+// stage, lightbox) goes through here so the two never cross-contaminate.
+function effectiveViewMode(d) {
+  return (d && d.catalogue === 'pokemon-mini') ? pmViewMode : viewMode;
+}
 function heroImgKey(d) {
-  if (viewMode === 'boxart')   return BOX_ART_IMAGES[d.id]    || null;
-  if (viewMode === 'boxart3d') return BOX_ART_3D_IMAGES[d.id] || null;
+  const vm = effectiveViewMode(d);
+  if (vm === 'boxart')   return BOX_ART_IMAGES[d.id]    || null;
+  if (vm === 'boxart3d') return BOX_ART_3D_IMAGES[d.id] || null;
+  // hardware: Pokémon Mini picks its per-device (cached) console colour so the
+  // tile, drawer stage, drawer hero, lightbox and coverflow covers all MATCH;
+  // every other device uses its fixed d.img.
+  if (d.catalogue === 'pokemon-mini') return pmConsoleKey(d);
+  // Tetris Jr.: the drawer hero + lightbox use the powered-off variant once ready
+  // (the live tile/stage use TJ_ART_KEY directly, so they're unaffected).
+  if (d.id === TJ_ID && imgIsEmbedded(TJ_OFF_KEY)) return TJ_OFF_KEY;
   return d.img || null;
 }
 function applyViewModeBodyClass() {
@@ -19729,8 +21738,13 @@ function updateDisplayModeButton() {
 // otherwise switching to Home/Series/etc with tile mode left on would also
 // blow away the frame there, which has nothing to do with device vs tile.
 function updateTileFrameClass() {
-  document.body.classList.toggle('tile-view-active', displayMode === 'tile' && state.route === '/collection');
-  document.body.classList.toggle('coverflow-active', displayMode === 'coverflow' && state.route === '/collection');
+  // Pokémon Mini has its own display mode; on its route the frame chrome follows
+  // pmDisplayMode, on the collection route it follows the G&W displayMode.
+  const onColl = state.route === '/collection';
+  const onPM   = state.route === '/pokemon-mini';
+  const mode   = onPM ? pmDisplayMode : displayMode;
+  document.body.classList.toggle('tile-view-active', mode === 'tile' && (onColl || onPM));
+  document.body.classList.toggle('coverflow-active', mode === 'coverflow' && (onColl || onPM));
 }
 function updateViewModeButton() {
   const hwBtn = $('#hardware-view-btn');
@@ -19807,7 +21821,7 @@ function loadCollection() {
     if (raw) {
       const arr = JSON.parse(raw);
       if (Array.isArray(arr)) {
-        const collectableIds = new Set(DEVICES.filter(isCollectable).map(d => d.id));
+        const collectableIds = new Set(ALL_DEVICES.filter(isCollectable).map(d => d.id));
         collected = new Set(arr.filter(id => collectableIds.has(id)));
       }
     }
@@ -19821,7 +21835,7 @@ function saveCollection() {
 function toggleCollected(deviceId, event) {
   if (event) { event.stopPropagation(); event.preventDefault(); }
   if (isShareMode) return;
-  const dev = DEVICES.find(x => x.id === deviceId);
+  const dev = ALL_DEVICES.find(x => x.id === deviceId);
   if (!isCollectable(dev)) return;
   const nowCollected = !collected.has(deviceId);
   if (nowCollected) collected.add(deviceId); else collected.delete(deviceId);
@@ -19857,7 +21871,7 @@ function refreshDrawerCollected(deviceId, btn) {
 function updateCollectionNavCount() {
   const el = $('#nav-collection-count');
   if (!el) return;
-  const total = DEVICES.filter(isCollectable).length;
+  const total = ALL_DEVICES.filter(isCollectable).length;
   el.textContent = collected.size + '/' + total;
 }
 
@@ -19914,7 +21928,7 @@ function computeVaultStats() {
   let testedCount = 0;
   let oldest = null, newest = null;
 
-  DEVICES.forEach(d => {
+  ALL_DEVICES.forEach(d => {
     if (!isCollectable(d) || !collected.has(d.id)) return;
     const row = vaultDataCache.get(d.id) || {};
     if (row.tested) testedCount++;
@@ -20272,6 +22286,7 @@ function bootApp() {
   IMG = window.IMG || {};
   paintEmbeddedIcons();
   auditHeroImageKeys();
+  buildTjOffImage();   // derive Tetris Jr.'s powered-off gallery photo (async, one-time)
 
   // Share-mode detection: if the URL has ?share=<uuid>, switch the page into
   // read-only mode. The owner's vault_code in localStorage is ignored for the
@@ -20312,6 +22327,7 @@ function bootApp() {
   loadViewMode();
   loadDisplayMode();
   loadSortMode();
+  loadPMPrefs();   // restore the Pokémon Mini display mode + sort (own keys) before first render
   applyViewModeBodyClass();
   const h = (location.hash || '#/').replace(/^#/, '');
   applyHashRoute(h);
@@ -20345,7 +22361,7 @@ function bootApp() {
      are still fetched every load; see the split-generation comment in
      encode.ps1 for the actual size-growth story. -->
 <script>
-const IMAGE_ARCHIVE_FILES = ['images_b64', 'images_b64_2'];
+const IMAGE_ARCHIVE_FILES = ['images_b64', 'images_b64_2', 'images_pm_b64'];
 
 (async function init() {
   try {
@@ -20465,9 +22481,10 @@ function loadImageArchiveViaScript() {
      today's date) whenever gnw.js changes, or CDN/browser caching
      (gnw.js has no other cache-busting) can serve a stale copy for up
      to Cache-Control's max-age after a deploy. -->
-<script src="firmware/content_pack.js?v=20260730-pack1"></script>
+<script src="firmware/content_pack.js?v=20260806-pmpack1"></script>
 <script src="firmware/cloud_storage.js?v=20260802-cloudoff"></script>
-<script src="gnw.js?v=20260805-dualsave3"></script>
+<script src="keys-diagram.js?v=20260811-lay23"></script>
+<script src="gnw.js?v=20260811-lay23"></script>
 <script>
 /* Settings → Content: open/clear a content pack (.zip). Talks to window.__GNW_PACK
    (firmware/content_pack.js); the emulators pick it up on the next reload. */
@@ -20480,6 +22497,7 @@ function loadImageArchiveViaScript() {
       'Artwork <b style="color:var(--text)">' + s.art.found + '/' + s.art.total + '</b>',
       'Colour units <b style="color:var(--text)">' + s.tft.found + '/' + s.tft.total + '</b>' + (s.tft.units.length ? ' (' + s.tft.units.join(', ') + ')' : '')
     ];
+    if (s.pokemini) parts.push('Pokémon mini <b style="color:var(--text)">' + s.pokemini.found + '/' + s.pokemini.total + '</b>' + (s.pokemini.bios ? ' + BIOS' : ' <span style="color:#c9a24a">(no BIOS)</span>'));
     var html = '<b style="color:var(--accent)">Loaded.</b> ' + parts.join(' &middot; ');
     if (s.roms.missing && s.roms.missing.length) html += '<div style="margin-top:6px; color:#c9a24a;">Missing ROMs (' + s.roms.missing.length + '): ' + s.roms.missing.join(', ') + '</div>';
     html += '<div style="margin-top:8px;"><b style="color:var(--text)">Reload the page</b> to bring the emulators to life.</div>';

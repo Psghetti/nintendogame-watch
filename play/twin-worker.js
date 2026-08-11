@@ -37,7 +37,7 @@ var FWMODE = (_params.get('fw') === 'custom') ? 'custom' : 'retail';
 //   twin-cfw.js  — adds retro-go / homebrew (custom firmware) boot support. It's a
 //                  separate file because that build regresses Zelda's retail boot,
 //                  so retail (both units) stays on twin.js and only custom uses it.
-var TWINV  = 'twin.js?v=20260727-selstart';
+var TWINV  = 'twin.js?v=20260811-keys1';
 var CFWV   = 'twin-cfw.js?v=20260727-selstart';
 
 var _UNITS = {
@@ -54,10 +54,16 @@ var _READY_CYCLES = (FWMODE === 'retail' && _cfg.key === 'zelda') ? 115000000 : 
 var _readyPosted = false;
 
 // ---- machine + shared state (assigned by the mode-specific boot below) -----
-var AT, cpu, bus, periph;
+var AT, cpu, bus, periph, machine = null;
 var octx = null, img = null, _pendingCanvas = null;
 var bootWall = performance.now();
 var audioReady = false, samplesSent = 0, workletR = 0, drcOn = false;
+// ---- emulator Pause + Save-state runtime state -----------------------------
+// paused halts the whole worker loop (cpu.run stops); the on-screen clock must
+// NOT advance across a pause, so on resume we shift bootWall by the paused wall
+// time (see the resume handler) and never recompute rtcCPS while paused.
+var paused = false, _pauseWall = 0;
+var _pendingSave = null;                 // slot number awaiting a safe-boundary capture, or null
 
 function applyCanvas(canvas){ octx = canvas.getContext('2d', { alpha:false }); img = octx.createImageData(320, 240); }
 
@@ -83,7 +89,7 @@ function bootRetail(){
   var FW = self.__ARM_FW[_cfg.key];
   var fw = { internal: AT.b64ToBytes(FW.internal), external: AT.b64ToBytes(FW.external) };
   var m = AT.loadUnit(fw, { axiSramMB: 2 });
-  cpu = m.cpu; bus = m.bus; periph = m.periph;
+  machine = m; cpu = m.cpu; bus = m.bus; periph = m.periph;
   setupCommon();
   // Zelda cold-boots to a "PRESS TIME BUTTON" attract and only advances to the
   // clock on a fresh TIME falling edge (firmware starts watching ~48.4M in).
@@ -95,7 +101,7 @@ function bootRetail(){
 // STM32H7B0 build. Same board; external flash is plain (OTFDEC never enabled).
 function bootCustom(internal, external){
   var m = AT.loadUnit({ internal: internal, external: external }, { unit:'retrogo', axiSramMB: 2, usbPower: false });
-  cpu = m.cpu; bus = m.bus; periph = m.periph;
+  machine = m; cpu = m.cpu; bus = m.bus; periph = m.periph;
   periph._retrogo = true;                             // GPIO model: PC5 = TIME button (not VBUS)
   setupCommon();
   cpu.reset(); bootWall = performance.now(); pump();
@@ -106,6 +112,46 @@ function render(){
   if (!octx || !cpu) return;
   AT.composeFrame(bus, periph, { w:320, h:240, rgba: img.data });
   octx.putImageData(img, 0, 0);
+}
+
+// Downscale the current 320x240 RGBA framebuffer to a small save-slot thumbnail
+// (nearest-neighbour; no DOM rasterisation). Returns { w, h, rgba:Uint8Array }.
+function makeThumb(){
+  if (!img) return null;
+  var sw = 320, sh = 240, dw = 96, dh = 72, src = img.data, dst = new Uint8Array(dw*dh*4);
+  for (var y=0; y<dh; y++){
+    var sy = (y*sh/dh) | 0;
+    for (var x=0; x<dw; x++){
+      var sx = (x*sw/dw) | 0, si = (sy*sw+sx)*4, di = (y*dw+x)*4;
+      dst[di] = src[si]; dst[di+1] = src[si+1]; dst[di+2] = src[si+2]; dst[di+3] = 255;
+    }
+  }
+  return { w:dw, h:dh, rgba:dst };
+}
+
+// Fulfil a queued save at a SAFE boundary: we're between cpu.run() slices; also
+// require no DMA2D blit mid-flight (dma2dDueCycle==0) so the snapshot never
+// catches a half-finished Chrom-ART transfer. Retries next tick if not clean.
+function doPendingSave(){
+  if (_pendingSave == null || !cpu || !machine || !AT.snapshot) return;
+  if (cpu.dma2dDueCycle !== 0) {
+    // A DMA2D completion is scheduled. Its pixels are already moved (the model
+    // blits synchronously on CR.START); only the completion IRQ is pending.
+    if (!paused) return;                             // running: just wait for the next clean pump tick
+    var cb = cpu.dma2dCallback;                      // frozen: no tick will advance us -> deliver the
+    cpu.dma2dCallback = null; cpu.dma2dDueCycle = 0;  // completion NOW so its IRQ is captured, not dropped
+    if (cb) { try { cb(); } catch (e) {} }
+  }
+  var slot = _pendingSave; _pendingSave = null;
+  var snap;
+  try { snap = AT.snapshot(machine); }
+  catch (err){ self.postMessage({ saveError: String((err && err.message) || err), slot: slot }); return; }
+  render();                                          // freshen the framebuffer for the thumbnail
+  var thumb = makeThumb();
+  var transfer = [];
+  for (var i=0; i<snap.regions.length; i++) transfer.push(snap.regions[i].bytes.buffer);
+  if (thumb) transfer.push(thumb.rgba.buffer);
+  self.postMessage({ saveResult: { slot: slot, unit: _cfg.key, snap: snap, thumb: thumb, time: Date.now() } }, transfer);
 }
 
 // ---- run loop (paced emulation) — identical pacing to the single-thread build
@@ -137,8 +183,21 @@ function renderTick(){
   }
 }
 
+// Single-schedule guard: exactly one pump is ever queued (immediate via the
+// MessageChannel, or a delayed setTimeout). Prevents two concurrent pump chains
+// after a pause/resume — which would double the emulation rate and the clock.
+var _pumpQueued = false;
+function queuePump(delayMs){
+  if (_pumpQueued) return;
+  _pumpQueued = true;
+  if (delayMs <= 0) mc.port2.postMessage(0); else setTimeout(pump, delayMs);
+}
+
 function pump(){
+  _pumpQueued = false;
+  if (paused){ doPendingSave(); queuePump(60); return; }   // paused: idle tick (allows a save), NO emulation, NO clock advance
   renderTick();                                      // keep the frame moving every scheduler turn
+  doPendingSave();
   if (!cpu || cpu.halted) return;
   var now = performance.now();
   var CPS = realHz();
@@ -151,10 +210,10 @@ function pump(){
   if (dt > 0.25) dt = 0;                             // long gap (tab stall) -> resume, don't fast-forward
   _target += dt * CPS;
   if (_target - cpu.cycles > 0.25 * CPS) { _target = cpu.cycles + 0.05 * CPS; wallFallbacks++; }  // load spike -> drop debt
-  if (cpu.cycles >= _target) { setTimeout(pump, 3); return; }        // caught up -> one short timer
+  if (cpu.cycles >= _target) { queuePump(3); return; }        // caught up -> one short timer
   while (!cpu.halted && cpu.cycles < _target && (performance.now() - now) < 8) { cpu.run(cpu.cycles + SLICE_CYCLES); }
   _emuBusy += performance.now() - now;
-  if (!cpu.halted) mc.port2.postMessage(0);          // behind -> re-post immediately
+  if (!cpu.halted) queuePump(0);                     // behind -> re-post immediately
 }
 mc.port1.onmessage = pump;
 
@@ -169,6 +228,43 @@ self.onmessage = function(e){
     audioReady = d.audioReady;
   } else if (d.wr !== undefined) {
     workletR = d.wr;
+  } else if (d.pause) {                               // emulator Pause: halt the whole loop, freeze the clock
+    if (!paused) { paused = true; _pauseWall = performance.now(); }
+  } else if (d.resume) {                              // resume: re-anchor timing so the clock does NOT jump
+    if (paused) {
+      var gap = performance.now() - _pauseWall;
+      bootWall += gap;                                // exclude the paused wall-time from the RTC mapping (rtcCPS=cycles/wallSec)
+      var nowR = performance.now();
+      _lastT = nowR;                                  // don't let dt spike on the first post-resume slice
+      _target = cpu ? cpu.cycles : 0;                 // don't fast-forward the accumulated debt
+      fpsT = nowR; lastCyc = cpu ? cpu.cycles : 0; _lastRender = nowR;
+      paused = false;
+      queuePump(0);                                   // ensure the loop is running (no-op if already queued)
+    }
+  } else if (d.save) {                                // request a save-state capture (fulfilled at the next safe boundary)
+    _pendingSave = (d.save.slot != null) ? d.save.slot : 0;
+    if (paused) doPendingSave();                      // frozen (Saves overlay): capture the at-rest state immediately
+  } else if (d.load) {                                // restore a save-state, then re-anchor the clock to the restored cycles
+    if (cpu && machine && AT.restore && d.load.snap) {
+      var ok = false;
+      try { ok = AT.restore(machine, d.load.snap); }
+      catch (err) { self.postMessage({ loadError: String((err && err.message) || err), slot: d.load.slot }); }
+      if (ok) {
+        var nowL = performance.now(), sn = d.load.snap;
+        // Make the clock resume showing the snapshot's time and tick forward in
+        // real time: pick bootWall so wallSec == cycles/rtcCPS at this instant,
+        // which keeps _rtcDate == rtcBaseMs + wallSec*1000 continuous.
+        var rtcCPS = (sn.periph && sn.periph.rtcCPS) ? sn.periph.rtcCPS : (periph.rtcCPS || 16000000);
+        bootWall = nowL - (cpu.cycles / rtcCPS) * 1000;
+        _lastT = nowL; _target = cpu.cycles; fpsT = nowL; lastCyc = cpu.cycles; _lastRender = nowL - 1e9;
+        if (paused) _pauseWall = nowL;                 // frozen load: measure the eventual resume-gap from HERE,
+                                                       // so bootWall (just re-anchored) isn't double-shifted on thaw
+        _readyPosted = true;                          // already past the reveal gate
+        render();
+        self.postMessage({ loadResult: { slot: d.load.slot, ok: true } });
+        if (!paused) queuePump(0);
+      }
+    }
   } else if (d.customFw) {                            // custom mode: user firmware relayed by the page -> boot it now
     if (AT && !cpu) {
       try { bootCustom(new Uint8Array(d.customFw.internal), new Uint8Array(d.customFw.external)); }

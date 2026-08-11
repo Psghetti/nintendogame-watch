@@ -67,18 +67,8 @@
   </div>
 
   <div id="status">starting…</div>
-  <div class="pcontrols">
-    <span class="pbtn"><span class="pkey">1</span> Game</span>
-    <span class="pbtn"><span class="pkey">2</span> Time</span>
-    <span class="pbtn"><span class="pkey">3</span> Pause</span>
-    <span class="pbtn"><span class="pkey">← ↑ ↓ →</span> Move</span>
-    <span class="pbtn"><span class="pkey">Q</span> B</span>
-    <span class="pbtn"><span class="pkey">E</span> A</span>
-    <span class="pbtn"><span class="pkey">C</span> Select</span>
-    <span class="pbtn"><span class="pkey">V</span> Start</span>
-    <span class="pbtn"><span class="pkey">P</span> Power</span>
-    <button id="mute" class="mbtn" type="button" aria-pressed="false">🔊 Sound on</button>
-  </div>
+  <!-- Bottom key legend removed: the pill's Keys button opens the shared Controls
+       diagram (Saves · Pause · Keys · Mute), so the legend row is redundant. -->
 </div>
 
 <script>
@@ -87,6 +77,9 @@
   // "Open custom firmware" flow loads this page as ...?fw=custom).
   window.TWIN_FW = new URLSearchParams(location.search).get("fw") || "retail";
 </script>
-<script src="../twin-harness.js?v=20260730-pack1"></script>
+<!-- Shared Controls-diagram engine — the SAME module every other device's Controls
+     screen uses (window.KeysDiagram); the twin's Keys pill renders through it. -->
+<script src="../../keys-diagram.js?v=20260811-keys1"></script>
+<script src="../twin-harness.js?v=20260811-keys6"></script>
 </body>
 </html>

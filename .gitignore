@@ -4,9 +4,23 @@
 # pointing $SourceFolder at your own dumps or the content packages.
 # ---------------------------------------------------------------------------
 firmware/gnw_roms.json
+firmware/pokemini_roms.json
 firmware/artwork.json.gz
 play/mario/firmware_mario.js
 play/zelda/firmware_zelda.js
+
+# Nintendo-derived ROM/BIOS dumps — user-supplied, NEVER distributed. Placed in
+# firmware/ only for local testing; the content-pack flow reads them at build time.
+# (.min = Pokémon mini ROM/BIOS image, .minc = colour homebrew.)
+*.min
+*.minc
+
+# Pokémon mini per-title boot states (play/pokemini/pm-states.json) — ~14 KB
+# main-screen snapshots that make every title boot instantly (see BOOT_STATES.md).
+# These embed title-screen graphics (game-derived), so the module doc defaults to
+# ignoring them; the repo owner has chosen to SHIP them, so keep them tracked.
+# Explicit allow guards against any future broad rule accidentally catching them.
+!play/pokemini/pm-states.json
 
 # ---------------------------------------------------------------------------
 # Local backups & editor/OS junk (not part of the deployable site)

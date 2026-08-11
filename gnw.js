@@ -100,6 +100,54 @@ const MICROVS_HOTSPOTS = {
   gameB: { left: 85.482, top: 32.962, width: 6.445, height: 11.896 },  // 1260,266,95x96
   time:  { left: 85.482, top: 41.760, width: 6.445, height: 11.896 },  // 1260,337,95x96
 };
+// LAYOUT 21 — Micro Vs. System (Boxing BX-301 / DK 3 / DK Hockey). Played on TWO
+// external plug-in controllers, so the console itself has no directional/fire
+// buttons — the P1/P2 controls are CONSTRUCTED for the diagram (not derived), via
+// `keysHotspots` (diagram-only). P1 (left) = arrow cross + Space Fire; P2 (right) =
+// W/A/S/D cross + F Fire; Game A/B/Time pills centred between them. dirCircles makes
+// P1's up/down/left/right render as arrow circles (P2's p2* fall through to letter
+// circles since they aren't in _DIR_ARROW). Coords are a self-contained landscape
+// space (ar forced to 1).
+// Sides match the KEYBOARD: WASD (P1) on the LEFT, arrow keys (P2) on the RIGHT.
+// The arrow-player's Fire is Right Ctrl (next to the arrows) — see MICROVS_KEYMAP.
+const MICROVS_KEYS_HOTSPOTS = {
+  p2up:    { left: 13, top: 30, width: 10, height: 12 },  // P1 = WASD (left)
+  p2down:  { left: 13, top: 56, width: 10, height: 12 },
+  p2left:  { left: 2,  top: 43, width: 10, height: 12 },
+  p2right: { left: 24, top: 43, width: 10, height: 12 },
+  p2fire:  { left: 12, top: 78, width: 12, height: 14 },
+  gameA: { left: 44, top: 28, width: 12, height: 9 },     // pills (centre)
+  gameB: { left: 44, top: 46, width: 12, height: 9 },
+  time:  { left: 44, top: 64, width: 12, height: 9 },
+  up:    { left: 77, top: 30, width: 10, height: 12 },    // P2 = arrows (right)
+  down:  { left: 77, top: 56, width: 10, height: 12 },
+  left:  { left: 66, top: 43, width: 10, height: 12 },
+  right: { left: 88, top: 43, width: 10, height: 12 },
+  fire:  { left: 76, top: 78, width: 12, height: 14 },
+};
+const LAYOUT_21_KEYS = {
+  keysHotspots: MICROVS_KEYS_HOTSPOTS, dirCircles: true,
+  keysLabels: [ { text: 'P1', x: 13, y: 16 }, { text: 'P2', x: 77, y: 16 } ],
+  meta: { fire: { label: 'Fire', keys: ['R Ctrl'] } },   // arrow-player fires with Right Ctrl
+};
+// Micro Vs. keyboard remap: the arrow-player (P2) fires with Right Ctrl (ergonomic —
+// next to the arrows) instead of Space. `Control`→fire; Space no longer fires.
+const MICROVS_KEYMAP = { 'Control': ['fire'], ' ': [] };
+
+// LAYOUT 23 — Super Mario Bros. Special YM-901-S (Table Top). The real control
+// crop is tight + wide, so the derived buttons come out small. Reshape the DIAGRAM
+// only (keysHotspots) into a Balloon-Fight-style spread cross + big Jump + Game A/
+// Time pills so the buttons read large; the keyless `alarm` is simply omitted.
+const SMBSPECIAL_KEYS_HOTSPOTS = {
+  up:    { left: 18, top: 20, width: 12, height: 13 },   // arrow cross (left)
+  down:  { left: 18, top: 58, width: 12, height: 13 },
+  left:  { left: 5,  top: 39, width: 12, height: 13 },
+  right: { left: 31, top: 39, width: 12, height: 13 },
+  gameA: { left: 47, top: 28, width: 13, height: 10 },   // pills (centre column)
+  time:  { left: 47, top: 50, width: 13, height: 10 },
+  jump:  { left: 70, top: 34, width: 20, height: 24 },   // big Jump (right)
+};
+const LAYOUT_23_KEYS = { keysHotspots: SMBSPECIAL_KEYS_HOTSPOTS, dirCircles: true };
 
 /* Table Top cabinet controls, shared by Snoopy SM-73 and Popeye PG-74.
 
@@ -143,6 +191,111 @@ const TABLETOP_CM_HOTSPOTS = {
   time:  TABLETOP_LR_HOTSPOTS.time,
 };
 
+/* LAYOUT 1 — two edge-mounted round buttons (Left / Right) plus a Game A /
+   Game B / Time operational ROW, on a single-screen Silver-series shell.
+   Shared by Vermin MT-03, Ball AC-01, Ball reissue RGW-001, Fire RC-04 and
+   Helmet CN-07 — one control definition instead of five near-identical inline
+   copies. Coordinates are Vermin's canonical trims (Helmet and Fire are
+   byte-identical; Ball's two L/R buttons were re-measured ~1% off, an
+   imperceptible click-region shift on the same artwork). % of each unit's
+   own canvas. inputRows stays per-device (the ROM wiring differs). */
+const LAYOUT_1 = {
+  left:  { left: 4.09,  top: 58.53, width: 18.05, height: 26.80 },
+  right: { left: 77.91, top: 58.53, width: 18.05, height: 26.80 },
+  gameA: { left: 45.80, top: 77.80, width: 12.21, height: 18.13 },
+  gameB: { left: 56.35, top: 77.80, width: 12.21, height: 18.13 },
+  time:  { left: 66.82, top: 77.80, width: 12.21, height: 18.13 },
+};
+
+/* LAYOUT 2 — FOUR round buttons: two on the left (up/down) and two on the
+   right (up/down), plus the Game A / Game B / Time row, single screen.
+   Shared by Flagman FL-02, Judge IP-05, Manhole MH-06 and Lion LN-08 (all
+   byte-identical here). Wired btn1 = left-up, btn2 = right-up, btn3 =
+   left-down, btn4 = right-down so the global KEY_TO_BUTTON map lands
+   Q(left-up) / E(right-up) / A(left-down) / D(right-down) by position. These
+   are DISCRETE circles, not see-saw rockers — the touching top/bottom pairs
+   would otherwise merge, so each member carries noRocker in KEYS_OVERRIDE.
+   inputRows stays per-device: each ROM binds these four positions to its own
+   K-bits, and those name→bit maps are preserved unchanged by this merge. */
+const LAYOUT_2 = {
+  btn1:  { left: 5.75,  top: 55.93, width: 14.73, height: 21.87 },  // left-up  → Q
+  btn2:  { left: 79.93, top: 55.93, width: 14.73, height: 21.87 },  // right-up → E
+  btn3:  { left: 5.75,  top: 73.67, width: 14.73, height: 21.87 },  // left-down  → A
+  btn4:  { left: 79.93, top: 73.67, width: 14.73, height: 21.87 },  // right-down → D
+  gameA: { left: 45.80, top: 77.80, width: 12.21, height: 18.13 },
+  gameB: { left: 56.35, top: 77.80, width: 12.21, height: 18.13 },
+  time:  { left: 66.82, top: 77.80, width: 12.21, height: 18.13 },
+};
+
+/* LAYOUT 3 — two edge-mounted round hammer buttons (Left / Right) plus a
+   Game A / Game B / Time operational COLUMN stacked up the right-hand edge
+   (unlike LAYOUT_1's row), on a single-screen Wide Screen shell. Shared by
+   Parachute PR-21, Octopus OC-22, Popeye PP-23, Chef FP-24 and Mario the
+   Juggler MB-108. The first four are byte-identical; Mario the Juggler's two
+   side buttons sit 1.33% lower (top 59.91 vs 58.58) with everything else
+   identical — an imperceptible click-region shift on the same mold, smaller
+   than Ball's accepted Layout-1 shift. inputRows stays per-device (the ROM
+   wiring differs: swapHammers, hammer-pin vs K-line, GameA/B bit order).
+   The 1982-85 "New Wide Screen" units (Fire FR-27, Turtle Bridge, Tropical
+   Fish) look similar but carry a materially different pill/button geometry
+   (shorter 10.92-tall pills; Tropical Fish's small low buttons) and are kept
+   on their own inline hotspots — see keylayout.md's deferred list. */
+const LAYOUT_3 = {
+  left:  { left: 4.02,  top: 58.58, width: 15.24, height: 25.21 },
+  right: { left: 80.54, top: 58.58, width: 15.24, height: 25.21 },
+  gameA: { left: 82.31, top: 6.27,  width: 9.00,  height: 14.88 },
+  gameB: { left: 82.31, top: 17.80, width: 9.00,  height: 14.88 },
+  time:  { left: 82.31, top: 28.94, width: 9.00,  height: 14.88 },
+};
+
+/* LAYOUT 4 — FOUR round buttons (two independent 2-way levers: left up/down,
+   right up/down) plus a Game A / Game B / Time operational COLUMN up the right
+   edge, single screen. Wired btn1 = left-up, btn2 = right-up, btn3 = left-down,
+   btn4 = right-down so the global KEY_TO_BUTTON map lands Q/E/A/D by position
+   (like LAYOUT_2). Rendered as DISCRETE circles via LAYOUT_4_KEYS (noRocker) —
+   the touching top/bottom pairs on Mickey Mouse/Egg would otherwise merge into
+   see-saw rockers. Shared by Fire Attack ID-29, Mickey Mouse MC-25 and Egg
+   EG-26, whose hotspots are byte-identical (same 2611x1579 case mold). Manhole
+   NH-103 (manholews) is the same control TYPE and shares the LAYOUT_4_KEYS
+   diagram treatment, but keeps its own inline hotspots — it is a physically
+   different NH-103 chassis (smaller, differently-placed buttons/pills), so
+   folding its geometry here would move its gameplay click regions. inputRows
+   stays per-device: each ROM binds these four positions to its own K-bits
+   (Fire Attack and Mickey Mouse even differ in Left up/down bit order), and
+   those name->bit maps are preserved unchanged by this merge. */
+const LAYOUT_4 = {
+  btn1:  { left: 4.62,  top: 58.23, width: 12.79, height: 17.86 },  // left-up  -> Q
+  btn2:  { left: 82.38, top: 58.23, width: 13.02, height: 17.86 },  // right-up -> E
+  btn3:  { left: 4.62,  top: 75.08, width: 12.79, height: 17.86 },  // left-down  -> A
+  btn4:  { left: 82.38, top: 75.08, width: 13.02, height: 17.86 },  // right-down -> D
+  gameA: { left: 82.11, top: 8.19,  width: 9.42,  height: 10.92 },
+  gameB: { left: 82.11, top: 19.65, width: 9.42,  height: 10.92 },
+  time:  { left: 82.11, top: 31.11, width: 9.42,  height: 10.92 },
+};
+
+/* LAYOUT 6 — FOUR discrete directional CIRCLE buttons laid out in a plus/CROSS
+   (up / down / left / right), NOT a moulded D-pad (that came later, DK-52) and
+   NOT two rockers — plus a Jump/action button opposite and the Game/Time
+   operational column. Rendered via LAYOUT_6_KEYS (dirCircles): the four
+   directions render as separate circles, each labelled with its ARROW by
+   direction (up=↑ down=↓ left=← right=→) — arrow keys, not Q/E/A/D. Shared by
+   the New Wide Screen SM511 pair Climber DR-106 and Balloon Fight BF-107, whose
+   hotspots are byte-identical. Super Mario Bros. YM-105 is the same control
+   TYPE but its own measured mold (different jump/pill geometry) so it keeps its
+   inline hotspots; Donkey Kong Jr. DJ-101 wires the cross as btn1-4 on a
+   different chassis and also keeps its own hotspots — both share only the
+   LAYOUT_6_KEYS diagram treatment. inputRows stays per-device. */
+const LAYOUT_6 = {
+  up:    { left: 7.01,  top: 57.50, width: 9.00,  height: 14.88 },
+  down:  { left: 7.01,  top: 72.89, width: 9.00,  height: 14.88 },
+  left:  { left: 2.14,  top: 65.23, width: 9.00,  height: 14.88 },
+  right: { left: 11.91, top: 65.23, width: 9.00,  height: 14.88 },
+  jump:  { left: 80.08, top: 58.39, width: 16.70, height: 27.61 },
+  alarm: { left: 82.31, top: 6.27,  width: 9.00,  height: 14.88 },
+  time:  { left: 82.31, top: 17.80, width: 9.00,  height: 14.88 },
+  gameA: { left: 82.31, top: 28.94, width: 9.00,  height: 14.88 },
+};
+
 const GAMES = {
   vermin: {
     title: 'Vermin', subtitle: 'MT-03 · 1980',
@@ -150,13 +303,7 @@ const GAMES = {
     svgPath: 'artwork/gnw_vermin/gnw_vermin.svg',
     clockRam: { hT: 64, hO: 65, mT: 66, mO: 67, sT: 68, sO: 69 },
     screen: { left: 27.84, top: 23.27, width: 44.23, height: 44.13 },
-    hotspots: {
-      left:  { left: 4.09,  top: 58.53, width: 18.05, height: 26.80 },
-      right: { left: 77.91, top: 58.53, width: 18.05, height: 26.80 },
-      gameA: { left: 45.80, top: 77.80, width: 12.21, height: 18.13 },
-      gameB: { left: 56.35, top: 77.80, width: 12.21, height: 18.13 },
-      time:  { left: 66.82, top: 77.80, width: 12.21, height: 18.13 },
-    },
+    hotspots: LAYOUT_1,
     // inputRows[i] = the named buttons wired to hardware input row IN.i,
     // each mapped to the K-bit it sets on that row. Vermin/Ball only define
     // IN.0 (MAME's inp_fixed_last() makes it the sole, always-read row —
@@ -183,13 +330,7 @@ const GAMES = {
     // (confirmed by cropping it), so the lines never made it in from there
     // either -- Background2.png has to be drawn as its own layer on top.
     hideLines: true,
-    hotspots: {
-      left:  { left: 4.99,  top: 59.93, width: 16.26, height: 24.20 },
-      right: { left: 78.72, top: 59.93, width: 16.26, height: 24.20 },
-      gameA: { left: 45.80, top: 77.80, width: 12.21, height: 18.13 },
-      gameB: { left: 56.35, top: 77.80, width: 12.21, height: 18.13 },
-      time:  { left: 66.82, top: 77.80, width: 12.21, height: 18.13 },
-    },
+    hotspots: LAYOUT_1,
     inputRows: [ { time: 1, gameB: 2, gameA: 4 } ],
     fixedRow: 0,
   },
@@ -205,13 +346,7 @@ const GAMES = {
     clockRam: { hT: 72, hO: 73, mT: 74, mO: 75, sT: 76, sO: 60 },
     screen: { left: 27.91, top: 23.26, width: 44.00, height: 44.12 },
     hideLines: true,
-    hotspots: {
-      left:  { left: 4.99,  top: 59.93, width: 16.26, height: 24.20 },
-      right: { left: 78.72, top: 59.93, width: 16.26, height: 24.20 },
-      gameA: { left: 45.80, top: 77.80, width: 12.21, height: 18.13 },
-      gameB: { left: 56.35, top: 77.80, width: 12.21, height: 18.13 },
-      time:  { left: 66.82, top: 77.80, width: 12.21, height: 18.13 },
-    },
+    hotspots: LAYOUT_1,
     inputRows: [ { time: 1, gameB: 2, gameA: 4 } ],
     fixedRow: 0,
   },
@@ -227,15 +362,7 @@ const GAMES = {
     // rows selected by R (see SM5A.step()'s KTA case and hh_sm510.cpp's
     // piezo_input_w) — NOT a flat OR of one merged bitmask, despite each row
     // reusing the same bit positions internally.
-    hotspots: {
-      btn1:  { left: 5.75,  top: 55.93, width: 14.73, height: 21.87 },
-      btn2:  { left: 79.93, top: 55.93, width: 14.73, height: 21.87 },
-      btn3:  { left: 5.75,  top: 73.67, width: 14.73, height: 21.87 },
-      btn4:  { left: 79.93, top: 73.67, width: 14.73, height: 21.87 },
-      gameA: { left: 45.80, top: 77.80, width: 12.21, height: 18.13 },
-      gameB: { left: 56.35, top: 77.80, width: 12.21, height: 18.13 },
-      time:  { left: 66.82, top: 77.80, width: 12.21, height: 18.13 },
-    },
+    hotspots: LAYOUT_2,
     inputRows: [ {}, { time: 1, gameB: 2, gameA: 4 }, { btn1: 1, btn2: 2, btn3: 4, btn4: 8 } ],
   },
 
@@ -251,13 +378,7 @@ const GAMES = {
     // release with a different ROM/case — that mismatch was the root
     // cause of Fire's "shows all segments, can't start game" bug.
     screen: { left: 27.84, top: 23.27, width: 44.23, height: 44.13 },
-    hotspots: {
-      left:  { left: 4.09,  top: 58.53, width: 18.05, height: 26.80 },
-      right: { left: 77.91, top: 58.53, width: 18.05, height: 26.80 },
-      gameA: { left: 45.80, top: 77.80, width: 12.21, height: 18.13 },
-      gameB: { left: 56.35, top: 77.80, width: 12.21, height: 18.13 },
-      time:  { left: 66.82, top: 77.80, width: 12.21, height: 18.13 },
-    },
+    hotspots: LAYOUT_1,
     // gnw_fires_state calls inp_fixed_last() just like Vermin/Ball — a
     // single, always-read input row, no R-based mux needed.
     inputRows: [ { time: 1, gameB: 2, gameA: 4 } ],
@@ -283,15 +404,7 @@ const GAMES = {
     // selected by R the same way as Flagman/Manhole/Lion. IN.1 bit
     // assignments from the MAME layout: 1=P1 Hit(bit3), 2=P2 Hit(bit1),
     // 3=P1 Dodge(bit2), 4=P2 Dodge(bit0).
-    hotspots: {
-      btn1:  { left: 5.75,  top: 55.93, width: 14.73, height: 21.87 },
-      btn2:  { left: 79.93, top: 55.93, width: 14.73, height: 21.87 },
-      btn3:  { left: 5.75,  top: 73.67, width: 14.73, height: 21.87 },
-      btn4:  { left: 79.93, top: 73.67, width: 14.73, height: 21.87 },
-      gameA: { left: 45.80, top: 77.80, width: 12.21, height: 18.13 },
-      gameB: { left: 56.35, top: 77.80, width: 12.21, height: 18.13 },
-      time:  { left: 66.82, top: 77.80, width: 12.21, height: 18.13 },
-    },
+    hotspots: LAYOUT_2,
     inputRows: [ {}, { time: 1, gameB: 2, gameA: 4 }, { btn1: 8, btn2: 2, btn3: 4, btn4: 1 } ],
   },
 
@@ -307,15 +420,7 @@ const GAMES = {
     // No hammers — 4 directional buttons (up/down on each side), a genuinely
     // separate hardware row (IN.1) from Game A/B/Time (IN.2), same scheme as
     // Flagman/Judge/Lion.
-    hotspots: {
-      btn1:  { left: 5.75,  top: 55.93, width: 14.73, height: 21.87 },
-      btn2:  { left: 79.93, top: 55.93, width: 14.73, height: 21.87 },
-      btn3:  { left: 5.75,  top: 73.67, width: 14.73, height: 21.87 },
-      btn4:  { left: 79.93, top: 73.67, width: 14.73, height: 21.87 },
-      gameA: { left: 45.80, top: 77.80, width: 12.21, height: 18.13 },
-      gameB: { left: 56.35, top: 77.80, width: 12.21, height: 18.13 },
-      time:  { left: 66.82, top: 77.80, width: 12.21, height: 18.13 },
-    },
+    hotspots: LAYOUT_2,
     inputRows: [ {}, { time: 1, gameB: 2, gameA: 4 }, { btn1: 8, btn2: 2, btn3: 4, btn4: 1 } ],
   },
 
@@ -353,13 +458,7 @@ const GAMES = {
     // comment in _syncClockToNow().
     clockRam: { hT: 54, hO: 55, mT: 56, mO: 57, sT: 58, sO: 59, pmBit: 8 },
     screen: { left: 27.84, top: 23.27, width: 44.23, height: 44.13 },
-    hotspots: {
-      left:  { left: 4.09,  top: 58.53, width: 18.05, height: 26.80 },
-      right: { left: 77.91, top: 58.53, width: 18.05, height: 26.80 },
-      gameA: { left: 45.80, top: 77.80, width: 12.21, height: 18.13 },
-      gameB: { left: 56.35, top: 77.80, width: 12.21, height: 18.13 },
-      time:  { left: 66.82, top: 77.80, width: 12.21, height: 18.13 },
-    },
+    hotspots: LAYOUT_1,
     // Time/GameB/GameA are also mirrored onto row 0: confirmed via MAME
     // instruction-trace comparison that a KTA read of rows 0+1 (R=7) right
     // after a mode-button press must see a changed value there to pass a
@@ -386,15 +485,7 @@ const GAMES = {
     // (IN.1) from Game A/B/Time (IN.2), same scheme as Flagman/Judge/Manhole.
     // MAME notes this game doesn't handle simultaneous button presses
     // correctly on real hardware either (BTANB, not our bug).
-    hotspots: {
-      btn1:  { left: 5.75,  top: 55.93, width: 14.73, height: 21.87 },
-      btn2:  { left: 79.93, top: 55.93, width: 14.73, height: 21.87 },
-      btn3:  { left: 5.75,  top: 73.67, width: 14.73, height: 21.87 },
-      btn4:  { left: 79.93, top: 73.67, width: 14.73, height: 21.87 },
-      gameA: { left: 45.80, top: 77.80, width: 12.21, height: 18.13 },
-      gameB: { left: 56.35, top: 77.80, width: 12.21, height: 18.13 },
-      time:  { left: 66.82, top: 77.80, width: 12.21, height: 18.13 },
-    },
+    hotspots: LAYOUT_2,
     inputRows: [ {}, { time: 1, gameB: 2, gameA: 4 }, { btn1: 8, btn2: 2, btn3: 4, btn4: 1 } ],
   },
 
@@ -407,13 +498,7 @@ const GAMES = {
     // Popeye/Chef, same bit.
     clockRam: { hT: 54, hO: 55, mT: 56, mO: 57, sT: 58, sO: 59, pmBit: 8 },
     screen: { left: 25.01, top: 23.31, width: 49.90, height: 53.64 },
-    hotspots: {
-      left:  { left: 4.02,  top: 58.58, width: 15.24, height: 25.21 },
-      right: { left: 80.54, top: 58.58, width: 15.24, height: 25.21 },
-      gameA: { left: 82.31, top: 6.27,  width: 9.00,  height: 14.88 },
-      gameB: { left: 82.31, top: 17.80, width: 9.00,  height: 14.88 },
-      time:  { left: 82.31, top: 28.94, width: 9.00,  height: 14.88 },
-    },
+    hotspots: LAYOUT_3,
     // Same shape as Ball/Vermin's hammers, but R-gated (no fixedRow) like
     // Manhole/Lion — Game A/B/Time live on inputRows[1], confirmed via
     // headless simulation (holding Time visibly switches the LCD out of
@@ -440,13 +525,7 @@ const GAMES = {
     // Parachute/Popeye/Chef, same bit.
     clockRam: { hT: 54, hO: 55, mT: 56, mO: 57, sT: 58, sO: 59, pmBit: 8 },
     screen: { left: 25.01, top: 23.31, width: 49.90, height: 53.64 },
-    hotspots: {
-      left:  { left: 4.02,  top: 58.58, width: 15.24, height: 25.21 },
-      right: { left: 80.54, top: 58.58, width: 15.24, height: 25.21 },
-      gameA: { left: 82.31, top: 6.27,  width: 9.00,  height: 14.88 },
-      gameB: { left: 82.31, top: 17.80, width: 9.00,  height: 14.88 },
-      time:  { left: 82.31, top: 28.94, width: 9.00,  height: 14.88 },
-    },
+    hotspots: LAYOUT_3,
     // Same shape as Ball/Vermin's hammers, but R-gated (no fixedRow) like
     // Manhole/Lion — Game A/B/Time live on inputRows[1], confirmed via
     // headless simulation (holding Time visibly switches the LCD out of
@@ -472,13 +551,7 @@ const GAMES = {
     // Octopus/Chef (same underlying Wide Screen clock ROM).
     clockRam: { hT: 54, hO: 55, mT: 56, mO: 57, sT: 58, sO: 59, pmBit: 8 },
     screen: { left: 25.01, top: 23.31, width: 49.90, height: 53.64 },
-    hotspots: {
-      left:  { left: 4.02,  top: 58.58, width: 15.24, height: 25.21 },
-      right: { left: 80.54, top: 58.58, width: 15.24, height: 25.21 },
-      gameA: { left: 82.31, top: 6.27,  width: 9.00,  height: 14.88 },
-      gameB: { left: 82.31, top: 17.80, width: 9.00,  height: 14.88 },
-      time:  { left: 82.31, top: 28.94, width: 9.00,  height: 14.88 },
-    },
+    hotspots: LAYOUT_3,
     // Same shape as Ball/Vermin's hammers, but R-gated (no fixedRow) like
     // Manhole/Lion — Game A/B/Time live on inputRows[1], confirmed via
     // headless simulation (holding Time visibly switches the LCD out of
@@ -540,13 +613,7 @@ const GAMES = {
     // gap).
     rMuxInvert: true,
     screen: { left: 25.01, top: 23.31, width: 49.90, height: 53.64 },
-    hotspots: {
-      left:  { left: 4.02,  top: 58.58, width: 15.24, height: 25.21 },
-      right: { left: 80.54, top: 58.58, width: 15.24, height: 25.21 },
-      gameA: { left: 82.31, top: 6.27,  width: 9.00,  height: 14.88 },
-      gameB: { left: 82.31, top: 17.80, width: 9.00,  height: 14.88 },
-      time:  { left: 82.31, top: 28.94, width: 9.00,  height: 14.88 },
-    },
+    hotspots: LAYOUT_3,
     // Chef has no dedicated hammer pins — left/right and Game A/B/Time are
     // all K-line bits, confirmed against the real MAME driver source
     // (hh_sm510.cpp gnw_chef_state): IN.0 (row 0) is entirely unused,
@@ -631,15 +698,7 @@ const GAMES = {
     // covers the extended-hold logic and startAttract()'s auto Time-tap-
     // dismiss — no needsResetForModeButtons or lampTestOnBoot flags needed,
     // same as Judge/Manhole/Lion/Flagman.
-    hotspots: {
-      btn1:  { left: 4.62,  top: 58.23, width: 12.79, height: 17.86 },
-      btn2:  { left: 82.38, top: 58.23, width: 13.02, height: 17.86 },
-      btn3:  { left: 4.62,  top: 75.08, width: 12.79, height: 17.86 },
-      btn4:  { left: 82.38, top: 75.08, width: 13.02, height: 17.86 },
-      gameA: { left: 82.11, top: 8.19,  width: 9.42,  height: 10.92 },
-      gameB: { left: 82.11, top: 19.65, width: 9.42,  height: 10.92 },
-      time:  { left: 82.11, top: 31.11, width: 9.42,  height: 10.92 },
-    },
+    hotspots: LAYOUT_4,
     // inputRows array index is NOT the same as the port's "IN.n" suffix —
     // that was the bug here originally (movement at index 1, mode buttons
     // at index 2, mirroring the driver source's IN.1/IN.2 comments
@@ -667,15 +726,7 @@ const GAMES = {
     // same reasons, including pmBit:2 (same ROM, same AM/PM mechanism).
     clockRam: { hT: 36, hO: 37, mT: 38, mO: 39, sT: 40, sO: 41, pmBit: 2 },
     screen: { left: 25.01, top: 23.31, width: 49.90, height: 53.64 },
-    hotspots: {
-      btn1:  { left: 4.62,  top: 58.23, width: 12.79, height: 17.86 },
-      btn2:  { left: 82.38, top: 58.23, width: 13.02, height: 17.86 },
-      btn3:  { left: 4.62,  top: 75.08, width: 12.79, height: 17.86 },
-      btn4:  { left: 82.38, top: 75.08, width: 13.02, height: 17.86 },
-      gameA: { left: 82.11, top: 8.19,  width: 9.42,  height: 10.92 },
-      gameB: { left: 82.11, top: 19.65, width: 9.42,  height: 10.92 },
-      time:  { left: 82.11, top: 31.11, width: 9.42,  height: 10.92 },
-    },
+    hotspots: LAYOUT_4,
     inputRows: [ {}, { time: 1, gameB: 2, gameA: 4, alarm: 8 }, { btn4: 1, btn2: 2, btn3: 4, btn1: 8 } ],
   },
 
@@ -721,15 +772,7 @@ const GAMES = {
     // Left/Up-Down bit order is swapped from Mickey Mouse's IN.1, this ROM's
     // own choice, not a copy-paste of that one). IN.1/S2 (Time/GameB/GameA/
     // Alarm) matches every other Wide Screen title's K-row layout exactly.
-    hotspots: {
-      btn1:  { left: 4.62,  top: 58.23, width: 12.79, height: 17.86 },
-      btn2:  { left: 82.38, top: 58.23, width: 13.02, height: 17.86 },
-      btn3:  { left: 4.62,  top: 75.08, width: 12.79, height: 17.86 },
-      btn4:  { left: 82.38, top: 75.08, width: 13.02, height: 17.86 },
-      gameA: { left: 82.11, top: 8.19,  width: 9.42,  height: 10.92 },
-      gameB: { left: 82.11, top: 19.65, width: 9.42,  height: 10.92 },
-      time:  { left: 82.11, top: 31.11, width: 9.42,  height: 10.92 },
-    },
+    hotspots: LAYOUT_4,
     inputRows: [ { btn4: 1, btn2: 2, btn1: 4, btn3: 8 }, { time: 1, gameB: 2, gameA: 4, alarm: 8 } ],
   },
 
@@ -774,13 +817,7 @@ const GAMES = {
     // directly from this title's own artwork (same alpha/red-channel scan
     // method as Mickey Mouse), not copied from Chef's, since the visible
     // button size/position differs slightly on this casing.
-    hotspots: {
-      left:  { left: 3.89,  top: 59.25, width: 15.43, height: 23.81 },
-      right: { left: 80.64, top: 59.21, width: 15.43, height: 23.94 },
-      gameA: { left: 82.11, top: 8.19,  width: 9.42,  height: 10.92 },
-      gameB: { left: 82.11, top: 19.65, width: 9.42,  height: 10.92 },
-      time:  { left: 82.11, top: 31.11, width: 9.42,  height: 10.92 },
-    },
+    hotspots: LAYOUT_3,   // folded in (Peter): New Wide Screen mold, imperceptibly different — treat as Layout 3
     // Mode buttons (Time/GameB/GameA/Alarm) at inputRows array index 1, NOT
     // matching the driver source's "IN.2" comment literally — see the
     // Mickey Mouse inputRows comment for why the array index isn't the
@@ -833,13 +870,7 @@ const GAMES = {
     // uses.
     bootSyncCycles: 450,
     screen: { left: 25.47, top: 25.33, width: 48.83, height: 50.35 },
-    hotspots: {
-      left:  { left: 4.89,  top: 60.13, width: 13.40, height: 21.52 },
-      right: { left: 81.71, top: 60.13, width: 13.40, height: 21.52 },
-      gameA: { left: 82.11, top: 8.19,  width: 9.42,  height: 10.92 },
-      gameB: { left: 82.11, top: 19.65, width: 9.42,  height: 10.92 },
-      time:  { left: 82.11, top: 31.11, width: 9.42,  height: 10.92 },
-    },
+    hotspots: LAYOUT_3,   // folded in (Peter): New Wide Screen mold, imperceptibly different — treat as Layout 3
     // Array index DOES match the driver source's literal IN.0(movement)/
     // IN.1(mode) order here — verified empirically (LCD-diff before/after a
     // Time tap, not assumed from the port comments — see the Mickey Mouse
@@ -1093,13 +1124,7 @@ const GAMES = {
     // taken from the real MAME driver source directly and cross-checked live,
     // per this project's standing rule not to assume a convention carries
     // over between ROMs (see Mickey Mouse/Fire-FR27's own inputRows history).
-    hotspots: {
-      left:  { left: 7.09,  top: 64.28, width: 8.43, height: 13.94 },
-      right: { left: 83.11, top: 64.28, width: 8.24, height: 13.62 },
-      gameA: { left: 83.11, top: 9.50,  width: 6.51, height: 5.38 },
-      gameB: { left: 83.11, top: 22.48, width: 6.51, height: 5.38 },
-      time:  { left: 83.11, top: 33.57, width: 6.51, height: 5.38 },
-    },
+    hotspots: LAYOUT_3,   // folded in (Peter): smaller New Wide Screen buttons but the shared regions still cover them — treat as Layout 3
     // No fixedRow and real hotspots.left/right -- same proactive fix as
     // Mario's Cement Factory/Turtle Bridge, see their own comments.
     hammersNeedQuickTap: true,
@@ -1266,16 +1291,7 @@ const GAMES = {
     // confirmed, not empirical) -- IN.0: bit0=Time, bit1=Game, bit2=
     // Alarm. IN.1: bit0=Up, bit1=Right, bit2=Down, bit3=Left. IN.2:
     // bit0=Jump.
-    hotspots: {
-      up:    { left: 7.01,  top: 57.50, width: 9.00,  height: 14.88 },
-      down:  { left: 7.01,  top: 72.89, width: 9.00,  height: 14.88 },
-      left:  { left: 2.14,  top: 65.23, width: 9.00,  height: 14.88 },
-      right: { left: 11.91, top: 65.23, width: 9.00,  height: 14.88 },
-      jump:  { left: 80.08, top: 58.39, width: 16.70, height: 27.61 },
-      alarm: { left: 82.31, top: 6.27,  width: 9.00,  height: 14.88 },
-      time:  { left: 82.31, top: 17.80, width: 9.00,  height: 14.88 },
-      gameA: { left: 82.31, top: 28.94, width: 9.00,  height: 14.88 },
-    },
+    hotspots: LAYOUT_6,
     // No fixedRow and no btn1-4 (dedicated up/down/left/right hotspots
     // instead, same shape as Super Mario Bros) -- same proactive flags
     // as every no-quad-button hammer-shaped title until proven
@@ -1327,16 +1343,7 @@ const GAMES = {
     // Same S-port-direct-bit->IN.n wiring as Super Mario Bros/Climber
     // (source-confirmed) -- IN.0: bit0=Time, bit1=Game, bit2=Alarm.
     // IN.1: bit0=Up, bit1=Right, bit2=Down, bit3=Left. IN.2: bit0=Eject.
-    hotspots: {
-      up:    { left: 7.01,  top: 57.50, width: 9.00,  height: 14.88 },
-      down:  { left: 7.01,  top: 72.89, width: 9.00,  height: 14.88 },
-      left:  { left: 2.14,  top: 65.23, width: 9.00,  height: 14.88 },
-      right: { left: 11.91, top: 65.23, width: 9.00,  height: 14.88 },
-      jump:  { left: 80.08, top: 58.39, width: 16.70, height: 27.61 },
-      alarm: { left: 82.31, top: 6.27,  width: 9.00,  height: 14.88 },
-      time:  { left: 82.31, top: 17.80, width: 9.00,  height: 14.88 },
-      gameA: { left: 82.31, top: 28.94, width: 9.00,  height: 14.88 },
-    },
+    hotspots: LAYOUT_6,
     // Real device's own label for this button -- it ejects air from the
     // balloon-pack to fly, not a jump -- unlike DKJr/Super Mario Bros./
     // Climber, which reuse the same internal `jump` hotspot/button
@@ -1555,6 +1562,7 @@ const GAMES = {
     },
     hotspots: MICROVS_HOTSPOTS,
     inputRows: MICROVS_INPUT_ROWS,
+    keyMap: MICROVS_KEYMAP,
   },
 
   dkong3: {
@@ -1580,6 +1588,7 @@ const GAMES = {
     },
     hotspots: MICROVS_HOTSPOTS,
     inputRows: MICROVS_INPUT_ROWS,
+    keyMap: MICROVS_KEYMAP,
   },
 
   dkhockey: {
@@ -1605,6 +1614,7 @@ const GAMES = {
     },
     hotspots: MICROVS_HOTSPOTS,
     inputRows: MICROVS_INPUT_ROWS,
+    keyMap: MICROVS_KEYMAP,
   },
 
   mariotj: {
@@ -1641,13 +1651,11 @@ const GAMES = {
     // matching physical button anywhere in the real artwork's layout, so
     // deliberately not given a hotspot below, unlike every other mode
     // button here).
-    hotspots: {
-      left:  { left: 4.02,  top: 59.91, width: 15.24, height: 25.21 },
-      right: { left: 80.55, top: 59.91, width: 15.24, height: 25.21 },
-      gameA: { left: 82.31, top: 6.27,  width: 9.00,  height: 14.88 },
-      gameB: { left: 82.31, top: 17.80, width: 9.00,  height: 14.88 },
-      time:  { left: 82.31, top: 28.94, width: 9.00,  height: 14.88 },
-    },
+    // Folds onto LAYOUT_3: its own trim had L/R at top 59.91 (1.33% lower)
+    // and right at 80.55 (0.01% over); shared LAYOUT_3 uses 58.58/80.54, an
+    // imperceptible click-region shift on the same mold (smaller than Ball's
+    // accepted Layout-1 shift). Game A/B/Time pills were already byte-identical.
+    hotspots: LAYOUT_3,
     // No fixedRow and real hotspots.left/right -- same proactive fix as
     // every prior hammer/lever-shaped title with this shape, until proven
     // otherwise by real testing.
@@ -2776,6 +2784,17 @@ const GAMES = {
     // extended-hold/attract-dismiss logic -- no needsResetForModeButtons
     // or lampTestOnBoot needed, same as every other quad-button title.
     modeButtonsRegisterQuickly: true,
+    // The four corner buttons don't follow the btn1-4 = Q/E/A/D-by-position
+    // convention (btn1=top-left, btn2=bottom-left, btn3=bottom-right, btn4=top-
+    // right), so remap the letter keys to a spatial grid: Q/E on top, A/D on the
+    // bottom (E/D on the right). Keeps the keyboard and the Controls diagram in
+    // agreement. (Arrows keep their default btn1-4 mapping as hidden alternates.)
+    keyMap: {
+      q: ['btn1'], Q: ['btn1'],   // top-left    = Double Down
+      a: ['btn2'], A: ['btn2'],   // bottom-left  = Bet ×10 / Hit
+      d: ['btn3'], D: ['btn3'],   // bottom-right = Bet ×1 / Stand
+      e: ['btn4'], E: ['btn4'],   // top-right    = Enter
+    },
     inputRows: [ { btn1: 1, btn2: 2, btn3: 4, btn4: 8 }, { time: 1, gameB: 2, gameA: 4, alarm: 8 } ],
   },
 
@@ -5790,6 +5809,10 @@ class GnwEmulator {
     opts = opts || {};
     this.gameKey  = gameKey;                 // stable localStorage key for save states
     this.game     = GAMES[gameKey];
+    // Effective keyboard→button map: the global KEY_TO_BUTTON, with any per-device
+    // `keyMap` merged over it (e.g. Black Jack remaps Q/E/A/D so its 4 corner
+    // buttons read as a spatial grid instead of the default btn1-4 order).
+    this._keyMap  = this.game.keyMap ? Object.assign({}, KEY_TO_BUTTON, this.game.keyMap) : KEY_TO_BUTTON;
     this.cpu      = this.game.cpuType === 'sm512'
         ? new SM512(decodeRom(this.game.romB64), this.game.melodyB64 ? decodeRom(this.game.melodyB64) : null)
       : this.game.cpuType === 'sm511'
@@ -6044,8 +6067,14 @@ class GnwEmulator {
   // the plain lamp-test dismiss every title above gets.
   startAttract() {
     this._attractActive = true;
+    this._bootDismissPending = false;   // set true only during the ~1.2s boot lamp-test window (below)
     this._lastClockRefresh = 0; // force _frame()'s keep-alive to poke fresh values right away, not wait out a stale timestamp from a previous attract session
     if (this.game.fixedRow === undefined && !this._hasQuadButtons() && !this.game.lampTestOnBoot) return;
+    // The boot lamp-test is dismissed by the wall-clock tap below. Until it fires,
+    // FREEZING the emu (Keys/Saves/Pause) or REWINDING into these frames would
+    // strand the unit on 12:00. Flag the window so the UI can no-op those actions
+    // and rewind-capture can skip these frames — without touching the dismiss.
+    this._bootDismissPending = true;
     this._attractTimer = setTimeout(() => {
       if (!this._attractActive) return;
       this._kButtons['time'] = true;
@@ -6059,6 +6088,7 @@ class GnwEmulator {
       // producing a garbled clock digit instead of the clean idle tableau
       // a manual Time click already correctly reaches.
       this._resetWithButtonHeld();
+      this._bootDismissPending = false;   // lamp-test dismissed — freezing/rewinding is safe from here
       if (this._hasQuadButtons() || this.game.lampTestOnBoot) {
         this._attractReleaseTimer = setTimeout(() => {
           delete this._kButtons['time'];
@@ -6112,6 +6142,7 @@ class GnwEmulator {
 
   stopAttract() {
     this._attractActive = false;
+    this._bootDismissPending = false;
     if (this._attractTimer) { clearTimeout(this._attractTimer); this._attractTimer = null; }
     if (this._attractReleaseTimer) { clearTimeout(this._attractReleaseTimer); this._attractReleaseTimer = null; }
     if (this._attractKickReleaseTimer) { clearTimeout(this._attractKickReleaseTimer); this._attractKickReleaseTimer = null; }
@@ -6123,7 +6154,7 @@ class GnwEmulator {
   // (_kButtons) or its bound keyboard key (KEY_TO_BUTTON).
   _held(name) {
     if (this._kButtons[name]) return true;
-    for (const key in KEY_TO_BUTTON) if (KEY_TO_BUTTON[key].includes(name) && this.keys[key]) return true;
+    for (const key in this._keyMap) if (this._keyMap[key].includes(name) && this.keys[key]) return true;
     return false;
   }
 
@@ -6285,7 +6316,11 @@ class GnwEmulator {
     }
 
     cpu.updateLcd();
-    if (this._rew && !_rewinding) this._rew.capture(cpu);   // one snapshot per rendered frame (byte-copy)
+    // One snapshot per rendered frame (byte-copy).
+    // Skip ONLY the ~1.2s boot lamp-test frames (NOT the clock or gameplay) so you
+    // can't rewind back into the un-dismissed 12:00 and strand the unit. This flag
+    // is false during the clock/gameplay, so normal rewind is unaffected.
+    if (this._rew && !_rewinding && !this._bootDismissPending) this._rew.capture(cpu);
     if (this.disp) this.disp.update(cpu.lcd, dt);
     if (this.disp2) this.disp2.update(cpu.lcd, dt);
     this._updateButtonArt();
@@ -6411,11 +6446,11 @@ class GnwEmulator {
     this.stopAttract();
     if (e.key === '4' || e.key === 'r' || e.key === 'R') this.resetGame();
     if (e.key === 'l' || e.key === 'L') window.gnwDumpLog(15);
-    const names = KEY_TO_BUTTON[e.key] || [];
+    const names = this._keyMap[e.key] || [];
     if (names.includes('gameA') || names.includes('gameB') || names.includes('time')) this._resetWithButtonHeld();
   }
   keyup(e) {
-    const names = KEY_TO_BUTTON[e.key] || [];
+    const names = this._keyMap[e.key] || [];
     const needsMinHold = names.some(n => this._needsMinHold(n));
     this._delayedRelease(e.key, needsMinHold, () => { this.keys[e.key] = false; });
   }
@@ -7186,7 +7221,7 @@ function _bootPlayEmulator(gameKey) {
       // Skip game input while the user is typing in a field (the save-slot
       // comment box) -- otherwise the modal's document-level handler eats most
       // letters/arrows as game buttons and the textarea never receives them.
-      _kd  = e => { if (_gnwIsTypingTarget(e.target)) return; if (e.ctrlKey && (e.key === 'ArrowLeft' || e.key === 'Left')) { e.preventDefault(); window.gnwStartRewind(); return; } if (e.key === '-') { e.preventDefault(); window.gnwToggleMute(); return; } if (e.key !== 'Escape') { if (KEY_TO_BUTTON[e.key]) e.preventDefault(); _emu.keydown(e); } };
+      _kd  = e => { if (_gnwIsTypingTarget(e.target)) return; if (e.ctrlKey && (e.key === 'ArrowLeft' || e.key === 'Left') && !(_emu && _emu.game && _emu.game.microVs)) { e.preventDefault(); window.gnwStartRewind(); return; } if (e.key === '-') { e.preventDefault(); window.gnwToggleMute(); return; } if (e.key !== 'Escape') { if (KEY_TO_BUTTON[e.key] || (_emu && _emu._keyMap && _emu._keyMap[e.key])) e.preventDefault(); _emu.keydown(e); } };
       _ku  = e => { if (_gnwIsTypingTarget(e.target)) return; if (_rewinding && (e.key === 'ArrowLeft' || e.key === 'Left' || e.key === 'Control')) window.gnwStopRewind(); if (KEY_TO_BUTTON[e.key]) e.preventDefault(); _emu.keyup(e); };
       document.addEventListener('keydown', _kd);
       document.addEventListener('keyup',   _ku);
@@ -7247,6 +7282,7 @@ window.openPlayModal = function (gameKey, opts) {
   window.gnwSyncMuteBtn();   // reflect the persisted mute state on the button
   _playPaused = false; window.gnwSyncPauseBtn();   // a freshly opened game is running, not paused
   window.gnwCloseSaveGrid(true); window.gnwUpdateSaveButtons();   // never open the save grid onto a fresh game
+  if (window.gnwCloseKeys) window.gnwCloseKeys(true);            // nor the controls screen from the previous device
   if (opts && opts.autoBoot === false) {
     _stopPlayEmulator();
     _applyGameArtwork(gameKey);
@@ -7283,6 +7319,7 @@ window.gnwStartPlayFromPrompt = function () {
 
 window.closePlayModal = function () {
   window.gnwCloseSaveGrid(true);
+  if (window.gnwCloseKeys) window.gnwCloseKeys(true);   // don't carry the controls screen to the next device
   _stopPlayEmulator();
   closeOverlay('play-overlay');
 };
@@ -7313,6 +7350,7 @@ const _PLAY_ICON  = '<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden
 let _playPaused = false;
 window.gnwTogglePause = function () {
   if (!_emu) return;
+  if (_emu._bootDismissPending) return;   // don't freeze mid boot lamp-test (would strand on 12:00)
   _playPaused = !_playPaused;
   if (_playPaused) {
     if (_emu.raf) { cancelAnimationFrame(_emu.raf); _emu.raf = null; }
@@ -7327,13 +7365,56 @@ window.gnwTogglePause = function () {
 window.gnwSyncPauseBtn = function () {
   const btn = document.getElementById('play-pause-toggle');
   if (btn) {
-    btn.innerHTML = _playPaused ? _PLAY_ICON : _PAUSE_ICON;
+    // The pill button carries an icon span + a text label; swap just the icon so
+    // the "Pause"/"Resume" label survives. Falls back to whole-button innerHTML
+    // for any older icon-only layout.
+    const ico = document.getElementById('play-pause-ico');
+    if (ico) ico.innerHTML = _playPaused ? _PLAY_ICON : _PAUSE_ICON;
+    else btn.innerHTML = _playPaused ? _PLAY_ICON : _PAUSE_ICON;
+    const lbl = document.getElementById('play-pause-lbl');
+    if (lbl) lbl.textContent = _playPaused ? 'Resume' : 'Pause';
     btn.title = _playPaused ? 'Resume' : 'Pause';
     btn.setAttribute('aria-label', _playPaused ? 'Resume' : 'Pause');
     btn.setAttribute('aria-pressed', _playPaused ? 'true' : 'false');
   }
   const ind = document.getElementById('play-paused-indicator');
   if (ind) ind.style.display = _playPaused ? 'flex' : 'none';
+};
+
+// ─── Overlay-pill morph ─────────────────────────────────────────────────────
+// The top-centre controls pill (#play-toolbar-pill) doubles as the Back control
+// for the Saves grid / Keys screen: in gameplay it shows the five controls, and
+// when a sub-screen opens it morphs into a compact "← <title>" Back button. The
+// controls/back groups swap via the .sub-open class; the pill smoothly
+// extends/shrinks between the two by tweening an explicit px width (a FLIP-style
+// measure: read the current width, flip the state, read the target width, then
+// animate old→new). `instant` (or a reduced-motion preference) skips the tween —
+// used for the silent, mutually-exclusive pre-close and on modal open/close.
+function _gnwSetPill(mode, title, instant) {
+  var pill = document.getElementById('play-toolbar-pill');
+  if (!pill) return;
+  var back = mode === 'back';
+  if (title != null) { var t = document.getElementById('play-pill-back-title'); if (t) t.textContent = title; }
+  var reduce = false;
+  try { reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
+  if (pill.classList.contains('sub-open') === back) return;   // already in the target state
+  if (instant || reduce) { pill.style.width = ''; pill.classList.toggle('sub-open', back); return; }
+  var from = pill.getBoundingClientRect().width;
+  pill.style.width = 'auto';
+  pill.classList.toggle('sub-open', back);
+  var to = pill.getBoundingClientRect().width;
+  pill.style.width = from + 'px';
+  void pill.offsetWidth;                                       // force a reflow so the next set animates
+  pill.style.width = to + 'px';
+  var done = function () { pill.style.width = ''; pill.removeEventListener('transitionend', done); };
+  clearTimeout(pill._pillT); pill._pillT = setTimeout(done, 360);   // fallback if transitionend is missed
+  pill.addEventListener('transitionend', done);
+}
+// Back control on the morphed pill — returns from whichever sub-screen is open.
+window.gnwPillBack = function () {
+  if (_gridOpen) window.gnwCloseSaveGrid();
+  else if (_keysOpen) window.gnwCloseKeys();
+  else _gnwSetPill('game');
 };
 
 // ─── Visual Filmstrip Rewind ────────────────────────────────────────────────
@@ -7445,6 +7526,7 @@ function _gnwSetRewindUI(on) {
   };
   pin(ov, sc, true);
   pin(ov2, sc2, !!(sc2 && sc2.style.display !== 'none' && sc2.style.width));
+  const hud = document.getElementById('play-rewind-hud'); if (hud) hud.classList.toggle('on', on);   // the timer pill (now top-centre, outside the scan overlay)
   const pausedInd = document.getElementById('play-paused-indicator');
   if (pausedInd && on) pausedInd.style.display = 'none';      // hide PAUSED while the REW HUD is up
   if (!on) window.gnwSyncPauseBtn();                          // restore PAUSED indicator if we were paused
@@ -7733,6 +7815,254 @@ function _saveFlash(){
   });
 }
 
+// ===== Controls / Keys screen ============================================
+// A per-device diagram of the unit's buttons drawn as OUTLINES and labelled
+// with the keyboard keys that operate them. It's generated from the game's own
+// hotspot geometry (same % coordinate space as the live device), with the LCD
+// screen region(s) squeezed out of the middle so the buttons sit compactly —
+// so one component covers every G&W title automatically. Replaces the old
+// static text legend; uses the same overlay + Back pattern as the save grid.
+// Non-directional buttons: friendly label + the key(s) that press them. (The
+// four D-pad directions are handled by _dpadHTML, not here.)
+// NB: the generic Controls-diagram ENGINE (BUTTON_META, _DIR_ARROW, _glyphKey,
+// _dpadCross, _keysButtons, _keysLayout, _dpadHTML/_stickHTML/_rockerHTML, the
+// HTML builder, _keysFit, the live-highlight input, and the .keys-* CSS) now
+// lives in the shared keys-diagram.js (window.KeysDiagram), loaded before this
+// file. Only the PER-DEVICE DATA (KEYS_OVERRIDE + LAYOUT_n_KEYS below) and the
+// thin _emu wiring stay here.
+
+// Targeted per-title exceptions. The geometry engine handles POSITIONS/grouping
+// for EVERY unit automatically; this only tweaks the handful of things geometry
+// can't know (a mode-cluster that reads too small, a special control type, …).
+// Keep it minimal — most titles need no entry, and nothing here changes a unit
+// that already looks right (e.g. Donkey Kong).
+
+// Shared Controls-diagram tuning for the LAYOUT_1 family (one code base per
+// layout): diagram-only knobs, gameplay untouched. Tuned live against Vermin.
+var LAYOUT_1_KEYS = { opDX: 9, opDY: 2.4, opGap: 0.05 };
+// LAYOUT_2 family: 4 circles (Q/E/A/D) + the Game A/B/Time pill row. noRocker
+// keeps the touching pairs as circles; the pill row is tightened toward Time
+// (anchored right — Time can't move further right, the circle column is there).
+var LAYOUT_2_KEYS = { noRocker: true, opAnchor: 'right', opGap: 0.05 };
+// LAYOUT_4 family: 4 circles (Q/E/A/D) + the Game A/B/Time operational COLUMN
+// up the right edge. Same noRocker reason as LAYOUT_2 (Mickey Mouse/Egg's
+// touching top/bottom pairs would otherwise merge into rockers; Fire Attack and
+// Manhole NH-103 already have a real gap and don't merge, but carry the flag
+// too for a single shared treatment). No pill-position tuning yet — Peter tunes
+// opDX/opDY/opAnchor interactively later, as with Layouts 1 & 2.
+var LAYOUT_4_KEYS = { noRocker: true };
+// LAYOUT_6 family: FOUR discrete directional CIRCLES in a plus/cross (up/down/
+// left/right), labelled with ARROW keys (not Q/E/A/D). dirCircles makes
+// _keysButtons SKIP both the D-pad merge (Donkey Kong Jr.'s btn1-4 cross) and
+// the rocker merge (SMB/Climber/Balloon Fight's touching up/down & left/right
+// pairs), so the four directions render individually; _keysRenderDiagram then
+// draws each as a circle showing its direction arrow. The Jump/action button
+// and the Game/Time column render normally, unchanged. No pill-tuning yet.
+var LAYOUT_6_KEYS = { dirCircles: true };
+// LAYOUT_7 (Mario's Cement Factory ML-102): same discrete-circle style as
+// Layout 6 but only Left/Right (no up/down) + Open + Game/Time column. With the
+// up/down positions empty there's room, so enlarge the L/R circles via dirScale.
+var LAYOUT_7_KEYS = { dirCircles: true, dirScale: 1.35 };  // L/R match the Open (Space) action button
+// LAYOUT_9 (Mickey & Donald DM-53, Squish MG-61): H-rocker + V-rocker + pill
+// column. Diagram-only: their pill hotspots are ~2× wider / ~3× taller than Green
+// House's, so shrink them via opScale to match. (Positioning tuning added below.)
+var LAYOUT_9_KEYS = { opScale: 0.5, dirDY: -14 };
+// LAYOUT_12 (Rain Shower LP-57): D-pad + Move button + Game A/B/Time. The real
+// pills sit tucked to the RIGHT, toward the Move button — not centred where the
+// derive lands them — so opDX nudges the diagram cluster right. padTime pads the
+// single-word "Time" pill (3/Time) to the same 3-line height as Game A / Game B.
+var LAYOUT_12_KEYS = { opDX: 9, padTime: true };
+// LAYOUT_13 (Life Boat TC-58): CLONED from Layout 12 — identical treatment (pills
+// tucked RIGHT toward the right-side button via opDX + Time padded to 3 lines).
+// The ONLY difference is the device's LEFT control: Life Boat has a single Left
+// BUTTON where Rain Shower has a D-pad — and that comes from the hotspots, not
+// this object — so sharing LAYOUT_12_KEYS gives "Layout 12 with a button on the
+// left" for free.
+var LAYOUT_13_KEYS = LAYOUT_12_KEYS;
+// LAYOUT_15 (Table Top cabinets — Popeye PG-74 is the base): a directional STICK
+// + a round action button + Game A/B/Time row. Shared by Snoopy SM-73, DK Jr
+// CJ-71, Popeye PG-74, Mario's Cement Factory CM-72 — one code base. `stick`
+// renders the joystick (DK Jr's btn1-4 map to a 4-way stick); `actionCircle`
+// squares the action button (Punch/Open) into a true circle (not an oblong);
+// `opScale` enlarges the mode pills so "1/Game/A" fits instead of being clipped.
+var LAYOUT_15_KEYS = { stick: true, actionCircle: true, actionScale: 1.5, opScale: 1.6 };
+// LAYOUT_18 (Panorama Snoopy SM-91 / Popeye PG-92 / Mario's Bombs Away TB-94): a
+// horizontal Left/Right ROCKER on the left + a round action button on the right +
+// Game/Time pills. The rocker derives too skinny next to the big button, so grow
+// its height to ~30% of the button's rendered height.
+var LAYOUT_18_KEYS = { rockerHrel: 0.30 };
+var KEYS_OVERRIDE = {
+  // LAYOUT_15 — Table Top cabinets (Popeye PG-74 is the base): directional STICK
+  // + round action button + Game A/B/Time row. All four share LAYOUT_15_KEYS.
+  // DK Jr CJ-71 reads a 4-way pad (btn1-4) — the stick builder maps those to the
+  // same joystick element, so its Controls match the left/right-only siblings.
+  snoopyt:  LAYOUT_15_KEYS,
+  popeyet:  LAYOUT_15_KEYS,
+  mariocmt: LAYOUT_15_KEYS,
+  dkjrt:    LAYOUT_15_KEYS,
+  // LAYOUT_16 — Donkey Kong Jr. Panorama CJ-93: D-pad + Jump + Game/Time. Layout
+  // is already correct; just shrink the Jump button so it reads smaller than the
+  // D-pad (its raw hotspot made it slightly larger).
+  dkjrp:    { actionScale: 0.65 },
+  // LAYOUT_17 — dual-button Panorama siblings. Mickey Mouse DC-95 (mmousep) is the
+  // base (already correct: two Left/Right circle buttons + Game/Time); DK Circus
+  // MK-96 (dkcirc) has byte-identical hotspots, so it clones mmousep — one code base.
+  dkcirc:   { cloneFrom: 'mmousep' },
+  // LAYOUT_18 — Panorama Snoopy/Popeye/Mario's Bombs Away: L/R rocker + button +
+  // pills; grow the too-skinny rocker (see LAYOUT_18_KEYS).
+  snoopyp:  LAYOUT_18_KEYS,
+  popeyep:  LAYOUT_18_KEYS,
+  mbaway:   LAYOUT_18_KEYS,
+  // LAYOUT_19 / 20 — Spitball Sparky BU-201 / Crab Grab UD-202: layout is correct,
+  // but each has a tiny `alarm` hotspot that renders as a keyless "Alarm" pill —
+  // hide it from the diagram (gameplay hotspots untouched).
+  ssparky:  { hideButtons: ['alarm'] },
+  cgrab:    { hideButtons: ['alarm'] },
+  // LAYOUT_21 — Micro Vs. System: constructed P1 (arrow cross) + P2 (WASD cross)
+  // controllers + centred pills (see MICROVS_KEYS_HOTSPOTS / LAYOUT_21_KEYS).
+  boxing:   LAYOUT_21_KEYS,
+  dkong3:   LAYOUT_21_KEYS,
+  dkhockey: LAYOUT_21_KEYS,
+  // LAYOUT_23 — SMB Special: reshape to a Balloon-Fight-style big-button diagram
+  // (keysHotspots), which also drops the keyless alarm pill.
+  smbspecial: LAYOUT_23_KEYS,
+  // Gold Cliff is a DK-52-style Multi Screen unit with the identical control
+  // ergonomics (d-pad + Game/Continue + Jump); its own hotspots are oversized
+  // click targets (13% jump, big Game squares) and mirrored, so borrow Donkey
+  // Kong's clean control geometry wholesale — they are the same layout.
+  gcliff:   { cloneFrom: 'dkong' },
+  // Mario Bros has TWO up/down rockers (one per hand); showing arrows on both
+  // reads as impossible, so label them with the Q/E/A/D letter bindings.
+  // opDX nudges its centred pills to the right (same fix as Vermin/Layout 1).
+  mario:    { letters: true, opDX: 9 },
+  // LAYOUT_9 — Mickey & Donald / Squish: shrink the oversized pills (opScale).
+  mickdon:  LAYOUT_9_KEYS,
+  squish:   LAYOUT_9_KEYS,
+  // LAYOUT_12 — Rain Shower: nudge the Game A/B/Time pills right toward Move,
+  // and pad the "Time" pill to the same 3-line height as Game A/B.
+  rshower:  LAYOUT_12_KEYS,
+  // LAYOUT_13 — Life Boat: Left/Right buttons on opposite sides + Game/Time row,
+  // pills left natural (no opDX); padTime keeps Time 3 lines tall like Layout 12.
+  lboat:    LAYOUT_13_KEYS,
+  // LAYOUT_4 members — four round buttons (two left up/down, two right up/down),
+  // Q/E/A/D by position, with the Game A/B/Time operational column. Fire Attack
+  // ID-29 is the template; Mickey Mouse MC-25 and Egg EG-26 fold onto its
+  // byte-identical hotspots (LAYOUT_4) and need noRocker to stop their touching
+  // top/bottom pairs merging into rockers. Manhole NH-103 is the same control
+  // type on a different chassis — it keeps its own hotspots but shares this
+  // diagram treatment. Gameplay (inputRows) untouched for all four.
+  fireatk:   LAYOUT_4_KEYS,
+  mmouse:    LAYOUT_4_KEYS,
+  egg:       LAYOUT_4_KEYS,
+  manholews: LAYOUT_4_KEYS,
+  // Black Jack's btn1-4 are four ROUND buttons (two left, two right), not two
+  // rockers — the touching-pair detector would otherwise merge them.
+  // Black Jack's four corner buttons aren't directional — give them their real
+  // card-game functions (by key: Q/E/A/D) instead of the generic arrows.
+  bjack:    { noRocker: true, meta: {
+    btn1: { label: 'Double Down',    keys: ['Q'] },   // top-left
+    btn2: { label: 'Bet ×10 / Hit',  keys: ['A'] },   // bottom-left
+    btn3: { label: 'Bet ×1 / Stand', keys: ['D'] },   // bottom-right
+    btn4: { label: 'Enter',          keys: ['E'] },   // top-right
+  } },
+  // LAYOUT_6 members — four discrete directional CIRCLES in a cross (up/down/
+  // left/right), arrow-labelled. Donkey Kong Jr. DJ-101 wires the cross as
+  // btn1-4 (would otherwise merge into a D-pad); SMB YM-105, Climber DR-106 and
+  // Balloon Fight BF-107 use named up/down/left/right (would otherwise merge
+  // into rockers). Climber+Balloon Fight share byte-identical hotspots (LAYOUT_6);
+  // SMB and DK Jr. keep their own inline hotspots (different molds), sharing only
+  // this diagram treatment. Gameplay (inputRows) untouched for all four.
+  dkjr:     LAYOUT_6_KEYS,
+  smbn:     LAYOUT_6_KEYS,
+  climbern: LAYOUT_6_KEYS,
+  bfightn:  LAYOUT_6_KEYS,
+  // LAYOUT_7 — ML-102: enlarge the L/R circles (no up/down, so there's room).
+  mariocm:  LAYOUT_7_KEYS,
+  // LAYOUT_2 members — four round buttons (two left up/down, two right up/down),
+  // Q/E/A/D by position. Their btn1/btn3 and btn2/btn4 pairs touch vertically,
+  // so without noRocker the detector would merge each side into a see-saw
+  // rocker; these are discrete circles on the real hardware.
+  flagman:  LAYOUT_2_KEYS,
+  judge:    LAYOUT_2_KEYS,
+  manhole:  LAYOUT_2_KEYS,
+  lion:     LAYOUT_2_KEYS,
+  // LAYOUT_1 diagram tuning (Controls page only — never gameplay): the derived
+  // pill cluster spreads centred between the two side buttons, but on the real
+  // hardware Game A/B/Time sit tucked toward the RIGHT and a touch lower than the
+  // side buttons. Push right (opDX), tighten (opGap), drop below L/R (opDY).
+  vermin:      LAYOUT_1_KEYS,
+  ball:        LAYOUT_1_KEYS,
+  ballreissue: LAYOUT_1_KEYS,
+  fire:        LAYOUT_1_KEYS,
+  helmet:      LAYOUT_1_KEYS,
+};
+
+var _keysOpen = false;
+
+function _keysEnsureDom(){
+  if (document.getElementById('play-keys-panel')) return;
+  var style = document.createElement('style');
+  style.textContent =
+    '#play-head-actions.keys-open #play-save-btn,#play-head-actions.keys-open #play-load-btn,' +
+      '#play-head-actions.keys-open #play-rewind-btn,#play-head-actions.keys-open #play-keys-btn,' +
+      '#play-head-actions.keys-open #play-pause-toggle,#play-head-actions.keys-open #play-mute-btn,' +
+      '#play-head-actions.keys-open #play-devmode-toggle,#play-head-actions.keys-open #play-zoom-toggle{display:none!important}' +
+    '#play-head-actions.keys-open #play-keys-headbar{display:flex!important}' +
+    '#play-emu-root{position:relative}' +
+    '#play-keys-panel{position:absolute;inset:0;z-index:80;display:none;flex-direction:row;gap:16px;' +
+      // extra top padding clears the morphed Back pill floating at top-centre (z:90)
+      'background:linear-gradient(180deg,var(--bg-1),var(--bg-0));border-radius:14px;padding:54px 18px 18px;overflow:hidden}' +
+    '#play-keys-panel.open{display:flex}' +
+    '';
+  document.head.appendChild(style);
+  // The generic .keys-* diagram CSS lives in the shared engine.
+  if (window.KeysDiagram) window.KeysDiagram.ensureCss(document);
+  var panel = document.createElement('div');
+  panel.id = 'play-keys-panel';
+  var root = document.getElementById('play-emu-root');
+  if (root) root.appendChild(panel);
+  window.addEventListener('resize', function(){ if (_keysOpen) _keysFit(); });
+}
+
+// Thin caller: build the Controls diagram for the current device via the shared
+// engine. All geometry/HTML/CSS live in keys-diagram.js; here we only supply the
+// per-device DATA (the live game, its aspect, its KEYS_OVERRIDE) + the registry.
+function _keysRenderDiagram(){
+  var panel = document.getElementById('play-keys-panel'); if (!panel || !_emu || !window.KeysDiagram) return;
+  var dev = document.getElementById('play-device');
+  var ar = (dev && dev.offsetHeight) ? dev.offsetWidth / dev.offsetHeight : 1;   // artwork aspect → true button proportions
+  window.KeysDiagram.render(panel, {
+    game: _emu.game, gameKey: _emu.gameKey, ar: ar,
+    override: KEYS_OVERRIDE[_emu.gameKey] || {},
+    meta: (KEYS_OVERRIDE[_emu.gameKey] || {}).meta,   // per-device button-label overrides (e.g. Black Jack's Double Down/Hit/Stand/Enter)
+    games: GAMES, overrides: KEYS_OVERRIDE
+  });
+}
+function _keysFit(){ if (window.KeysDiagram) window.KeysDiagram.fit(document.getElementById('play-keys-panel')); }
+
+window.gnwOpenKeys = function(){
+  if (!_emu) return;
+  if (_emu._bootDismissPending) return;   // don't freeze mid boot lamp-test (would strand on 12:00)
+  _keysEnsureDom();
+  if (window.gnwCloseSaveGrid) window.gnwCloseSaveGrid(true);   // mutually exclusive with the save grid
+  _saveFreeze();                                                // pause while reading the controls
+  _keysOpen = true;
+  _keysRenderDiagram();
+  var p = document.getElementById('play-keys-panel'); if (p) p.classList.add('open');
+  var h = document.getElementById('play-head-actions'); if (h) h.classList.add('keys-open');
+  _gnwSetPill('back', 'Controls');
+  _keysFit();
+  if (window.KeysDiagram) window.KeysDiagram.attachInput(document.getElementById('play-keys-panel'));   // light buttons live as their keys are pressed
+};
+window.gnwCloseKeys = function(silent){
+  if (window.KeysDiagram) window.KeysDiagram.detachInput();
+  var p = document.getElementById('play-keys-panel'); if (p) p.classList.remove('open');
+  var h = document.getElementById('play-head-actions'); if (h) h.classList.remove('keys-open');
+  _gnwSetPill('game', null, silent);   // silent (mutual-exclusive/modal) = instant; user Back = animated
+  if (!silent) _saveThaw();   // always resume the game/demo on a real close (idempotent; respects a user pause)
+  _keysOpen = false;
+};
+
 // Inject the grid panel (into #play-emu-root, so it travels with the device),
 // the toast (into body), and the CSS — once.
 function _saveEnsureDom(){
@@ -7748,7 +8078,8 @@ function _saveEnsureDom(){
     '#play-head-actions.saves-open #play-saves-headbar{display:flex!important}' +
     '#play-emu-root{position:relative}' +
     '#play-save-panel{position:absolute;inset:0;z-index:80;display:none;flex-direction:column;' +
-      'background:linear-gradient(180deg,var(--bg-1),var(--bg-0));border-radius:14px;padding:16px 18px;overflow:auto;scrollbar-width:none}' +
+      // extra top padding clears the morphed Back pill floating at top-centre (z:90)
+      'background:linear-gradient(180deg,var(--bg-1),var(--bg-0));border-radius:14px;padding:54px 18px 16px;overflow:auto;scrollbar-width:none}' +
     '#play-save-panel::-webkit-scrollbar{display:none}' +
     '#play-save-panel.open{display:flex}' +
     '.save-back{font:inherit;font-size:12px;font-weight:700;color:var(--text);background:transparent;' +
@@ -7942,16 +8273,20 @@ window.gnwSaveSlot = function(){
 };
 window.gnwOpenSaveGrid = function(){
   if (!_emu) return;
+  if (_emu._bootDismissPending) return;   // don't freeze mid boot lamp-test (would strand on 12:00)
+  if (window.gnwCloseKeys) window.gnwCloseKeys(true);   // mutually exclusive with the controls screen
   _saveEnsureDom();
   _saveFreeze();
   _gridOpen = true;
   _saveRenderGrid();
   var p = document.getElementById('play-save-panel'); if (p) p.classList.add('open');
   var h = document.getElementById('play-head-actions'); if (h) h.classList.add('saves-open');
+  _gnwSetPill('back', 'Save slots');
 };
 window.gnwCloseSaveGrid = function(silent){
   var p = document.getElementById('play-save-panel'); if (p) p.classList.remove('open');
   var h = document.getElementById('play-head-actions'); if (h) h.classList.remove('saves-open');
+  _gnwSetPill('game', null, silent);   // silent (mutual-exclusive/modal) = instant; user Back = animated
   if (_gridOpen && !silent) _saveThaw();
   _gridOpen = false;
 };

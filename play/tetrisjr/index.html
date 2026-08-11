@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Tetris Jr. — TR-66</title>
+<style>
+  :root {
+    color-scheme: dark;
+    /* Theme tokens matching the main site's dark theme, so the SHARED Controls
+       engine (keys-diagram.js) — which styles with var(--muted)/--accent/--text/
+       --line/--bg-0/--bg-1 — renders the Controls diagram IDENTICALLY to DK-52. */
+    --bg-0: #0a0e14; --bg-1: #11161f; --line: #2a3242;
+    --text: #e7ecf2; --muted: #8a94a6; --accent: #9be15d;
+  }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    background: radial-gradient(circle at 50% 20%, #3a3f4a, #14161c 70%);
+    font-family: 'Arial Narrow', Arial, sans-serif; color: #e7ead9;
+    -webkit-user-select: none; user-select: none; touch-action: manipulation;
+  }
+  #wrap { min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; padding: 0; box-sizing: border-box; }
+
+  /* The playable IS the real device artwork: the two live LCD screens overlay
+     its windows and transparent hotspots sit over its physical buttons (they
+     light up when pressed). Sized by width so the page has a definite height
+     for the play-modal iframe to fit to. */
+  #device {
+    /* Height-driven like the gnw play modal's .play-device (max-height:82vh), so
+       the clamshell renders at the SAME size as the other multi-screen titles.
+       openTjPlay gives the iframe a fixed tall height so this vh sizing is stable
+       (a vh device inside a content-fit iframe would collapse). */
+    /* Fit fully within BOTH viewport axes (no scrollbar): the portrait clamshell
+       is height-bound on a normal landscape window, but min() also clamps it by
+       the width-derived height on short/narrow windows, so the whole device (both
+       screens + controls) always shows without overflow — the same tight fit as
+       DK-52. vh/vw resolve to the iframe when embedded in the site's play modal. */
+    position: relative; height: min(100vh, calc(100vw * 1369 / 1100)); width: auto;
+    max-width: 100vw; aspect-ratio: 1100 / 1369;
+    margin: 0 auto; filter: drop-shadow(0 18px 40px rgba(0,0,0,.55));
+  }
+  #art { position: absolute; inset: 0; width: 100%; height: 100%; -webkit-user-drag: none; }
+
+  /* the two LCD screens, positioned over the artwork's green windows (rects
+     measured from the artwork, % of its 1100x1369 natural size). Each screen has
+     its printed background scenery (top-window.png / bottom-window.png) with the
+     segments blended over it — the same as most G&W devices' Background.png. */
+  .lcd { position: absolute; overflow: hidden; isolation: isolate; }
+  /* width is overscanned by 2px so the printed background always covers the green
+     glass on the right (a subpixel rounding gap otherwise leaves a thin strip of
+     the default LCD showing); the extra bleeds harmlessly onto the dark frame. */
+  #topLCD { left: 27.64%; top: 14.17%; width: calc(44.55% + 2px); height: 23.01%; }
+  #botLCD { left: 27.64%; top: 61.58%; width: calc(44.55% + 2px); height: 23.08%; }
+  .lcd-bg  { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; display: block; -webkit-user-drag: none; }
+  .lcd-seg { position: absolute; inset: 0; }
+  /* segments fill the screen (preserveAspectRatio=none, set in JS) so they line
+     up with the background, and multiply over it like ink on the printed art. */
+  .lcd-seg svg { display: block; width: 100%; height: 100%; mix-blend-mode: multiply; }
+  /* Peter's sprite sheets: colour the segments for the LCD, ghost the empty grid */
+  .lcd .seg path { fill:#12180d; }
+  .lcd g[id^="cell"] path { fill: rgba(18,26,10,.13); }        /* etched (off) cell */
+  .lcd g[id^="cell"].lit path { fill:#12180d; }                /* lit cell */
+
+  /* Polarizer "glass" tint. On a real Game & Watch a polarising film sits in
+     front of the LCD and casts a faint colour over the whole window — that cast
+     is what makes the screen read as a segmented LCD rather than a clean, bright
+     panel (compare our screens to Mickey & Donald etc., which look tinted). Our
+     artwork's windows are baked clean, so we recreate the film as a translucent
+     front layer: a soft blue-grey that multiplies over the scenery + segments
+     (but not the device body — .lcd is isolate). Topmost layer inside .lcd. */
+  .lcd-tint {
+    position: absolute; inset: 0; pointer-events: none;
+    /* Matched by pixel-sampling: Mickey & Donald's tinted LCD "white" field is
+       ~rgb(129,148,140) (a desaturated green-grey — the real polariser reads
+       green, not blue), while our clean window art is ~rgb(211,211,211). An
+       opaque multiply by rgb(157,180,170) maps 211 -> that field, so our white
+       background matches theirs and everything else is tinted in proportion,
+       exactly as a polarising film does. */
+    background: rgb(157, 180, 170);
+    mix-blend-mode: multiply;
+  }
+
+  /* transparent hotspots over the artwork's controls; .pressed lights them up
+     as they're pressed, the same as every other device on the site. */
+  .hot { position: absolute; margin: 0; padding: 0; border: 0; background: transparent;
+    cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .hot.round { border-radius: 50%; }
+  .hot.pill  { border-radius: 45%/50%; }
+  .hot.pressed {
+    background: radial-gradient(circle, rgba(255,245,160,.7), rgba(255,245,160,.18) 60%, transparent 74%);
+    box-shadow: 0 0 3px 1px rgba(255,240,150,.45);
+  }
+  /* All rects measured from the artwork. d-pad cross spans x6.8–19.2%, y79.7–89.4%
+     (centre 13%, 84.5%); each arm is a third of the cross. */
+  #hot-left  { left: 6.8%;  top: 82.9%; width: 4.2%; height: 3.3%; }
+  #hot-right { left: 15%;   top: 82.9%; width: 4.2%; height: 3.3%; }
+  #hot-up    { left: 11%;   top: 79.7%; width: 4%;   height: 3.3%; }
+  #hot-down  { left: 11%;   top: 86.1%; width: 4%;   height: 3.3%; }
+  /* round red action button (bottom-right), centre 86.9%,84.6% */
+  #hot-round { left: 83.5%; top: 81.9%; width: 6.8%; height: 5.4%; }
+  /* right-side mode buttons (small ovals, not their labels) */
+  #hot-a    { left: 83.7%; top: 55.9%; width: 4.4%; height: 3.6%; }
+  #hot-b    { left: 83.6%; top: 61.2%; width: 4.4%; height: 3.6%; }
+  #hot-time { left: 83.6%; top: 66.5%; width: 4.4%; height: 3.6%; }
+
+  /* The round action (rotate) button. On the real TR-66 the D-pad is red but
+     this button is BLACK — our source artwork has it red, so we recolour it by
+     painting a black cap over it (a glossy black dome matching the other G&W
+     black action buttons, e.g. Oil Panic). Sized to the measured red cap
+     (centre 86.9%/84.4%, ~44px) plus a hair, so no red rim peeks. Not a .hot,
+     so it stays visible in the tile/drawer/demo embed too (single artwork). The
+     transparent #hot-round sits above it and still takes the clicks. */
+  #rotate-cap {
+    position: absolute; left: 83.35%; top: 81.65%; width: 7.1%; height: 5.75%;
+    border-radius: 50%; pointer-events: none;
+    background: radial-gradient(circle at 37% 30%, #5c5c5e 0%, #343436 26%, #161617 60%, #060607 100%);
+    box-shadow: inset 0 -3px 5px rgba(0,0,0,.7), inset 0 2px 4px rgba(255,255,255,.16), 0 1px 3px rgba(0,0,0,.5);
+  }
+  /* soft specular highlight, like the sheen on the moulded plastic */
+  #rotate-cap::after {
+    content: ''; position: absolute; left: 21%; top: 15%; width: 36%; height: 30%;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,255,255,.4), rgba(255,255,255,0) 70%);
+  }
+
+  kbd { background:#20241d; border:1px solid #4a5238; border-radius:4px; padding:1px 6px; font-size:11px; color:#cdd6b8; }
+
+  /* ---- Play features toolbar (Pause / Rewind / Save) — non-demo only ------ *
+     A compact translucent bar, mirroring the standard gnw play modal's controls
+     but kept entirely self-contained inside this iframe so nothing in the parent
+     page has to change. Hidden in the ?demo=1 attract embed. */
+  /* z-index sits ABOVE the Saves/Keys overlays (z:50) so, when a sub-screen is
+     open, the toolbar morphs into the "← Back" control floating over it — the
+     same pattern as the standard G&W (DK-52) play pill. The pill smoothly
+     extends/shrinks between the controls state and the Back state via a width
+     transition driven by tjSetToolbar (a FLIP-style px-width tween). */
+  #tj-toolbar {
+    position: fixed; top: 8px; left: 50%; transform: translateX(-50%);
+    display: flex; justify-content: center; z-index: 60; box-sizing: border-box;
+    max-width: calc(100vw - 16px); overflow: hidden;
+    background: rgba(16,18,22,.72); border: 1px solid #3a4132; border-radius: 999px;
+    padding: 4px 6px; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+    transition: width .28s cubic-bezier(.4,0,.2,1);
+  }
+  .tj-tb-controls { display: flex; gap: 6px; }
+  .tj-tb-back { display: none !important; }
+  #tj-toolbar.sub-open .tj-tb-controls { display: none; }
+  #tj-toolbar.sub-open .tj-tb-back { display: inline-flex !important; }
+  @media (prefers-reduced-motion: no-preference) {
+    #tj-toolbar .tj-tb-controls, #tj-toolbar .tj-tb-back { animation: tjPillFade .26s ease; }
+  }
+  @media (prefers-reduced-motion: reduce) { #tj-toolbar { transition: none; } }
+  @keyframes tjPillFade { from { opacity: .15; } to { opacity: 1; } }
+  .tj-tbtn {
+    display: inline-flex; align-items: center; gap: 5px; margin: 0; white-space: nowrap;
+    background: transparent; border: 0; border-radius: 999px; cursor: pointer;
+    color: #cdd6b8; font: inherit; font-size: 12px; line-height: 1;
+    padding: 6px 11px; -webkit-tap-highlight-color: transparent;
+  }
+  .tj-tbtn:hover { background: rgba(205,214,184,.12); }
+  .tj-tbtn:active, .tj-tbtn.active { background: rgba(255,240,150,.22); color: #fff6cf; }
+  .tj-tbtn svg { width: 14px; height: 14px; fill: currentColor; display: block; }
+  /* stroke-outline icons (Saves / Keys / Back, copied from the DK-52 pill) must
+     keep their fill:none — inline style beats the fill:currentColor rule above. */
+  .tj-tbtn[disabled] { opacity: .4; cursor: default; }
+  #tj-mute-ico { font-size: 13px; line-height: 1; }
+
+  /* PAUSED indicator (centred over the device) */
+  #tj-paused {
+    position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+    pointer-events: none; z-index: 35;
+  }
+  #tj-paused .badge {
+    background: rgba(16,18,22,.78); border: 1px solid #4a5238; border-radius: 10px;
+    color: #e7ead9; font-size: 15px; letter-spacing: .18em; padding: 10px 20px;
+    box-shadow: 0 8px 26px rgba(0,0,0,.5);
+  }
+
+  /* ◄◄ REW heads-up readout while scrubbing back */
+  #tj-rew-hud {
+    position: fixed; top: 48px; left: 50%; transform: translateX(-50%); display: none;
+    z-index: 36; background: rgba(16,18,22,.8); border: 1px solid #4a5238;
+    border-radius: 8px; color: #ffd27a; font-size: 13px; letter-spacing: .08em;
+    padding: 5px 12px; font-variant-numeric: tabular-nums;
+  }
+  /* faint scanline wash on the device while rewinding (VHS feel, like gnw) */
+  #device.tj-rewinding { filter: drop-shadow(0 18px 40px rgba(0,0,0,.55)) saturate(1.1) contrast(1.05); }
+  /* VHS scan-bands pinned to the LCD glass — the same effect the G&W devices use. */
+  #device.tj-rewinding .lcd::after {
+    content: ''; position: absolute; left: 0; right: 0; top: -20%; bottom: -20%;
+    pointer-events: none; z-index: 5;
+    background-image: repeating-linear-gradient(0deg,
+      rgba(255,255,255,.42) 0, rgba(255,255,255,.42) 4px,
+      transparent 4px, transparent 18px);
+    mix-blend-mode: screen; animation: gnw-scan-bands .16s steps(2) infinite;
+  }
+  @keyframes gnw-scan-bands { 0% { transform: translateY(0); } 50% { transform: translateY(9px); } 100% { transform: translateY(-6px); } }
+
+  /* Saves grid + Controls overlays (fill the iframe, freeze play beneath them).
+     Both use the morphed toolbar Back pill (floating above at z:60) to return,
+     mirroring the DK-52 play modal — no in-panel header/Back of their own. The
+     top padding clears that floating pill. */
+  #tj-saves {
+    position: fixed; inset: 0; display: none; flex-direction: column; z-index: 50;
+    background: rgba(10,12,16,.93); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+    padding: 52px 14px 14px; box-sizing: border-box; overflow: auto;
+  }
+  /* Controls screen — an EMPTY panel that the SHARED keys engine (keys-diagram.js,
+     window.KeysDiagram) renders into, exactly as the main site does for #play-keys-
+     panel: flex-row so the diagram (.keys-wrap) + extras column sit side by side.
+     The .keys-* diagram styling comes from the shared engine's ensureCss(), so the
+     Controls read IDENTICAL to DK-52. The theme vars it uses (--muted/--accent/
+     --text/--line/--bg-0/--bg-1) are defined on :root above. */
+  #tj-keys {
+    position: fixed; inset: 0; display: none; flex-direction: row; gap: 16px; z-index: 50;
+    background: linear-gradient(180deg, var(--bg-1), var(--bg-0));
+    padding: 54px 18px 18px; box-sizing: border-box; overflow: hidden;
+  }
+  /* align-items:start so a collapsed slot never stretches to the height of an
+     expanded neighbour's row (the G&W save-grid model). */
+  #tj-saves .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; align-items: start; }
+  @media (max-width: 560px) { #tj-saves .grid { grid-template-columns: repeat(3, 1fr); } }
+  /* Slot card — mirrors gnw's .save-slot: thumb + meta, click to expand an
+     occupied slot into Load / Delete + a notes field. Empty slot = dashed "+"
+     that saves on click. */
+  .tj-slot {
+    position: relative; border: 1px solid #3a4132; border-radius: 10px; background: #171b14;
+    cursor: pointer; display: flex; flex-direction: column; overflow: hidden;
+    align-self: start; transition: border-color .14s, box-shadow .14s;
+  }
+  .tj-slot:hover { border-color: #6a7a48; }
+  .tj-slot.expanded { border-color: rgba(155,225,93,.55); box-shadow: 0 10px 26px -14px rgba(0,0,0,.7); }
+  .tj-slot .thumb {
+    position: relative; width: 100%; height: 120px; flex: 0 0 auto;
+    background: #0e120b center center / cover no-repeat; border-bottom: 1px solid #3a4132; overflow: hidden;
+  }
+  .tj-slot .thumb img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; display: block; }
+  .tj-slot .meta { display: flex; justify-content: space-between; align-items: center; gap: 6px; padding: 6px 8px; font-size: 10.5px; color: #9aa48c; }
+  .tj-slot .num { font-family: ui-monospace, Consolas, monospace; font-weight: 800; color: #6f7a5c; }
+  /* empty slot */
+  .tj-slot.empty { border-style: dashed; background: transparent; }
+  .tj-slot.empty .thumb { background: repeating-linear-gradient(135deg, rgba(255,255,255,.02) 0 10px, transparent 10px 20px); }
+  .tj-slot .plus {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 32px; height: 32px; border: 2px dashed #4a5238; border-radius: 50%;
+    color: #6f7a5c; display: flex; align-items: center; justify-content: center; font-size: 19px; line-height: 1;
+  }
+  .tj-slot.empty:hover .plus { border-color: #9be15d; color: #9be15d; }
+  .tj-slot.empty .meta { color: #6f7a5c; }
+  /* expanded detail (display:none collapsed so it never inflates the grid row) */
+  .tj-slot .detail { display: none; border-top: 1px solid #3a4132; animation: tjDetailIn .18s ease; }
+  @keyframes tjDetailIn { from { opacity: 0; } to { opacity: 1; } }
+  .tj-slot.expanded .detail { display: block; }
+  .tj-slot .pad { padding: 9px; display: flex; flex-direction: column; gap: 8px; }
+  .tj-slot .acts { display: flex; gap: 7px; }
+  .tj-slot .acts button {
+    flex: 1; justify-content: center; font: inherit; font-size: 11.5px; font-weight: 700; padding: 6px 8px;
+    border-radius: 7px; border: 1px solid #4a5238; background: #1c2119; color: #e7ead9; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .tj-slot .acts .load { border-color: rgba(155,225,93,.5); color: #cbeeb0; }
+  .tj-slot .acts .load:hover { background: rgba(155,225,93,.12); }
+  .tj-slot .acts .del { border-color: rgba(224,107,93,.4); color: #f0b7af; }
+  .tj-slot .acts .del:hover { background: rgba(224,107,93,.12); }
+  .tj-slot .note {
+    width: 100%; box-sizing: border-box; background: #0e120b; border: 1px solid #4a5238; border-radius: 6px;
+    color: #e7ead9; font: inherit; font-size: 12px; padding: 7px 8px; resize: none; min-height: 40px;
+  }
+  .tj-slot .note::placeholder { color: #6f7a5c; }
+  /* brief toast after a save */
+  #tj-toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(10px);
+    z-index: 60; background: rgba(30,40,20,.95); border: 1px solid #5a6a38; border-radius: 8px;
+    color: #eaf0d8; font-size: 12px; padding: 8px 16px; opacity: 0; transition: opacity .2s, transform .2s;
+    pointer-events: none;
+  }
+  #tj-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* Demo/attract embed (?demo=1): the tile + drawer embed this SAME page so the
+     device is rendered ONE way everywhere (artwork + screens in a single document
+     — a change here changes the tile, drawer AND play window at once). Demo just
+     fills the frame with the full device, hides the controls + hint, and auto-runs
+     the silent attract; it is NOT a transparent screens-only overlay. */
+  body.demo { background: transparent; }
+  body.demo #wrap { display: block; padding: 0; min-height: 0; }
+  body.demo .hot { display: none !important; }
+  /* The play-features UI (toolbar + overlays) is for the interactive play window
+     only — the ?demo=1 attract embed (tile/drawer) must show nothing but the
+     device, so hide all of it there. */
+  body.demo #tj-toolbar, body.demo #tj-paused, body.demo #tj-rew-hud,
+  body.demo #tj-saves, body.demo #tj-keys, body.demo #tj-toast { display: none !important; }
+  body.demo #device { position: fixed; inset: 0; width: auto; height: auto; max-width: none; aspect-ratio: auto; margin: 0; filter: none; }
+</style>
+</head>
+<body>
+<!-- Set the demo class SYNCHRONOUSLY, before the toolbar/paused/keys markup below
+     is parsed, so those chrome elements never flash on the tile/drawer embed. -->
+<script>if (new URLSearchParams(location.search).has('demo')) document.body.classList.add('demo');</script>
+<div id="wrap">
+  <div id="device">
+    <img id="art" src="PrototypeTetrisJrArt.webp" alt="Game &amp; Watch Tetris Jr. (TR-66)">
+    <!-- recolour the red round button to black (real device is black there) -->
+    <div id="rotate-cap"></div>
+    <div class="lcd" id="topLCD"><img class="lcd-bg" src="top-window.png" alt=""><div class="lcd-seg" id="topSeg"></div><div class="lcd-tint"></div></div>
+    <div class="lcd" id="botLCD"><img class="lcd-bg" src="bottom-window.png" alt=""><div class="lcd-seg" id="botSeg"></div><div class="lcd-tint"></div></div>
+    <!-- transparent button hotspots over the artwork's controls -->
+    <button class="hot"       id="hot-left"  data-act="left"   aria-label="Shift stack left"></button>
+    <button class="hot"       id="hot-right" data-act="right"  aria-label="Shift stack right"></button>
+    <button class="hot"       id="hot-up"    data-act="rotate" aria-label="Rotate"></button>
+    <button class="hot"       id="hot-down"  data-act="drop"   aria-label="Drop"></button>
+    <button class="hot round" id="hot-round" data-act="rotate" aria-label="Rotate"></button>
+    <button class="hot pill"  id="hot-a"     data-mode="A"     aria-label="Game A"></button>
+    <button class="hot pill"  id="hot-b"     data-mode="B"     aria-label="Game B"></button>
+    <button class="hot pill"  id="hot-time"  data-clock="1"    aria-label="Time"></button>
+  </div>
+</div>
+
+<!-- Play-features toolbar + overlays (all self-contained in this iframe; hidden in ?demo=1).
+     Order + icons mirror the standard G&W (DK-52) play pill: Saves · Pause · Keys ·
+     Rewind · Mute. The whole pill morphs into a "← Back" control (.tj-tb-back) when a
+     sub-screen is open — see tjSetToolbar. -->
+<div id="tj-toolbar" role="toolbar" aria-label="Play controls">
+  <div class="tj-tb-controls">
+    <button class="tj-tbtn" id="tj-save" aria-label="Save states"><svg viewBox="0 0 24 24" style="fill:none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v5"/></svg>Saves</button>
+    <button class="tj-tbtn" id="tj-pause" aria-label="Pause"><span id="tj-pause-ico"></span><span id="tj-pause-lbl">Pause</span></button>
+    <button class="tj-tbtn" id="tj-keys-btn" aria-label="Controls"><svg viewBox="0 0 24 24" style="fill:none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="8.5" y="2" width="7" height="7" rx="1.8"/><rect x="1" y="10.5" width="7" height="7" rx="1.8"/><rect x="8.5" y="10.5" width="7" height="7" rx="1.8"/><rect x="16" y="10.5" width="7" height="7" rx="1.8"/></svg>Keys</button>
+    <button class="tj-tbtn" id="tj-rewind" aria-label="Rewind (hold)"><svg viewBox="0 0 24 24"><path d="M11 6v12L5 12l6-6zm8 0v12l-6-6 6-6z"/></svg>Rewind</button>
+    <button class="tj-tbtn" id="tj-mute" aria-label="Mute" aria-pressed="false"><span id="tj-mute-ico">🔊</span>Mute</button>
+  </div>
+  <button class="tj-tbtn tj-tb-back" id="tj-back" aria-label="Back to game"><svg viewBox="0 0 24 24" style="fill:none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg><span id="tj-back-lbl">Back</span></button>
+</div>
+<div id="tj-paused"><div class="badge">PAUSED</div></div>
+<div id="tj-rew-hud">◄◄ REW 0.0s</div>
+<div id="tj-toast"></div>
+
+<!-- Controls screen — an EMPTY panel; the SHARED keys engine (window.KeysDiagram
+     from ../../keys-diagram.js) renders the DK-52-identical diagram into it when
+     the Keys pill button is pressed. Returned via the morphed Back pill. -->
+<div id="tj-keys" aria-hidden="true"></div>
+
+<div id="tj-saves" aria-hidden="true">
+  <div class="grid" id="tj-saves-grid"></div>
+</div>
+
+<!-- Shared Controls-diagram engine — the SAME module the main site loads, so
+     Tetris Jr's Controls screen is drawn by identical code (window.KeysDiagram). -->
+<script src="../../keys-diagram.js"></script>
+<script src="engine.js"></script>
+<script>
+/* ------------------------------------------------------------------ *
+ *  Display binder: maps the engine's abstract view calls onto PETER'S
+ *  two segment sheets (sprites-top.svg + sprites-bottom.svg). Peter drew
+ *  his art onto the device's canonical segment IDs:
+ *    grid cells   cell<Row><Col>  rows 0-9,A-G  cols 0-C  (hex)
+ *    digits       digit<pos><seg 0-6>  + colon  digit:0
+ *    labels       textPoint textTime GameA GameB miss1-3 AM PM
+ *    characters   dealer1-3 (+preview dealer11-14/21-24) clapper1-3
+ *                 hitter1-3 swinger0-9 blocks1-3 alarm1-3
+ *  The engine's own row/col coordinate system already matches this
+ *  layout exactly, so mapping is a direct hex lookup.
+ * ------------------------------------------------------------------ */
+// standard seven-segment numerals, by physical segment name
+const NUM = {
+  0:'abcdef', 1:'bc', 2:'abged', 3:'abgcd', 4:'fgbc',
+  5:'afgcd', 6:'afgecd', 7:'abc', 8:'abcdefg', 9:'abcdfg'
+};
+
+function makeDisplay(topSvg, botSvg) {
+  const roots = [topSvg, botSvg];
+  const byId = (id) => topSvg.getElementById(id) || botSvg.getElementById(id);
+  const show = (id, on) => { const el = byId(id); if (el) el.style.display = on ? '' : 'none'; };
+  const lit  = (id, on) => { const el = byId(id); if (el) el.classList.toggle('lit', !!on); };
+  // apply / clear an SVG clip-path on a segment group (our "cheat" for hiding
+  // part of a fused segment — e.g. the swinger's head in the hit pose).
+  const clip = (id, clipId) => { const el = byId(id); if (!el) return; if (clipId) el.setAttribute('clip-path', 'url(#' + clipId + ')'); else el.removeAttribute('clip-path'); };
+  const toHex = (n) => n < 10 ? String(n) : String.fromCharCode(55 + n); // 10->A .. 16->G
+
+  // classify each digit's 7 segments into a..g by geometry (robust to any
+  // numbering), ordered left-to-right; run while everything is still visible.
+  const digitPos = [];
+  function classifyDigits() {
+    const groups = [];
+    for (let i = 0; i < 4; i++) {
+      const segs = [];
+      for (let s = 0; s < 7; s++) { const el = byId('digit' + i + s); if (el) { try { segs.push({ el, bb: el.getBBox() }); } catch (_) {} } }
+      if (segs.length === 7) {
+        const cx = segs.reduce((a, p) => a + p.bb.x + p.bb.width / 2, 0) / 7;
+        const cy = segs.reduce((a, p) => a + p.bb.y + p.bb.height / 2, 0) / 7;
+        groups.push({ cx, cy, segs });
+      }
+    }
+    groups.sort((a, b) => a.cx - b.cx);
+    for (const g of groups) {
+      const map = {};
+      const hor = g.segs.filter(p => p.bb.width > p.bb.height).sort((a, b) => a.bb.y - b.bb.y);
+      const ver = g.segs.filter(p => p.bb.height >= p.bb.width);
+      if (hor[0]) map.a = hor[0].el; if (hor[1]) map.g = hor[1].el; if (hor[2]) map.d = hor[2].el;
+      const up = ver.filter(p => p.bb.y + p.bb.height / 2 < g.cy).sort((a, b) => a.bb.x - b.bb.x);
+      const lo = ver.filter(p => p.bb.y + p.bb.height / 2 >= g.cy).sort((a, b) => a.bb.x - b.bb.x);
+      if (up[0]) map.f = up[0].el; if (up[1]) map.b = up[1].el;
+      if (lo[0]) map.e = lo[0].el; if (lo[1]) map.c = lo[1].el;
+      digitPos.push(map);
+    }
+  }
+  function setDigit(pos, ch) {
+    const map = digitPos[pos]; if (!map) return;
+    const on = (ch === ' ' || ch == null) ? '' : (NUM[ch] || '');
+    for (const name of 'abcdefg') { const el = map[name]; if (el) el.style.display = on.includes(name) ? '' : 'none'; }
+  }
+  function showNumber(value) {
+    const chars = String(Math.max(0, value | 0)).slice(-4).padStart(4, ' ');
+    for (let i = 0; i < 4; i++) setDigit(i, chars[i] === ' ' ? ' ' : +chars[i]);
+  }
+
+  // hide every dynamic segment; leave the grid cells as faint "ghosts"
+  function resetAll() {
+    for (const root of roots) {
+      root.querySelectorAll('g[id]').forEach(g => {
+        const id = g.getAttribute('id');
+        if (id.indexOf('cell') === 0) { g.classList.remove('lit'); return; } // cells: ghost
+        if (id === 'sprites') return;
+        g.style.display = 'none';
+      });
+    }
+    for (const R of 'ABCDEFG') show('cell' + R + '0', false); // hide the wrap-buffer column
+  }
+
+  function poseOne(prefix, count, active) { for (let i = 1; i <= count; i++) show(prefix + i, i === active); }
+  function poseMany(prefix, count, idxs) { for (let i = 1; i <= count; i++) show(prefix + i, idxs.includes(i)); }
+
+  classifyDigits();
+  resetAll();
+
+  return {
+    reset() { resetAll(); },
+    // Power-on segment test: light EVERY segment on both screens (all cells lit,
+    // all characters/labels/digits shown) — the "all on" flash every G&W does.
+    allSegments() {
+      for (const root of roots) {
+        root.querySelectorAll('[id]').forEach(el => {
+          const id = el.getAttribute('id');
+          if (id === 'sprites') return;
+          el.style.display = '';
+          if (id.indexOf('cell') === 0) el.classList.add('lit');
+        });
+      }
+    },
+    setCell(kind, r, c, on) {
+      const id = kind === 'ch' ? 'cell' + toHex(r) + (c + 5)      // chute rows 0-9, cols 5-8
+                               : 'cell' + toHex(r + 10) + toHex(c + 1); // bin rows A-G, cols 1-C
+      lit(id, on);
+    },
+    setPreview(shape, rows) {
+      for (let r = 0; r < 2; r++)
+        for (let c = 0; c < 4; c++)
+          show('dealer' + (r + 1) + (c + 1), !!(rows[r] && rows[r][c] === 'x'));
+    },
+    setScore(n) { showNumber(n); },
+    setTime(sec) { showNumber(sec); },
+    // Clock / idle: hours:minutes across the 4 digits (leading space for 1–9
+    // o'clock), a blinking colon, and AM/PM. The swinger doubles as the pendulum.
+    setClock(h, m, colonOn, pm) {
+      const hh = String(h);
+      setDigit(0, hh.length === 2 ? +hh[0] : ' ');
+      setDigit(1, +hh[hh.length - 1]);
+      const mm = String(m).padStart(2, '0');
+      setDigit(2, +mm[0]);
+      setDigit(3, +mm[1]);
+      const colon = byId('digit:0'); if (colon) colon.style.display = colonOn ? '' : 'none';
+      show('AM', !pm);
+      show('PM', pm);
+    },
+    setLabel(w) { show('textPoint', w === 'point'); show('textTime', w === 'time'); },
+    setMode(m) { show('GameA', m === 'A'); show('GameB', m === 'B'); },
+    setMisses(n) { for (let i = 1; i <= 3; i++) show('miss' + i, i <= n); },
+    // "bricks leaving off the left" — 3 stacked graphics: id 3 = top, 2 = middle,
+    // 1 = bottom (numbering is inverted vs. vertical position). ids = which to show.
+    setBlocks(ids) { for (let i = 1; i <= 3; i++) show('blocks' + i, ids.includes(i)); },
+    // dealer: pose 2 = holding/idle, 1 = tossing, 3 = knocked over
+    dealer(p) {
+      poseOne('dealer', 3, p === 'deal' ? 1 : p === 'idle' ? 2 : 3);
+      // The preview brick is the piece in his hands — only visible while he's
+      // carrying it (holding pose). Throwing or knocked-over (far right) = empty
+      // hands, so the block reads as thrown, never duplicated in the preview.
+      if (p !== 'idle') this.setPreview(null, [[], []]);
+    },
+    clapper(p) { poseMany('clapper', 3, p === 'off' ? [] : p === 'clap' ? [1, 3] : [1, 2]); },
+    // hitter = the mallet workman. hitter1 = constant lower body ("pants", always shown);
+    // hitter2 = Position 1 (upright, mallet raised — resting); hitter3 = Position 2 (bent over,
+    // mallet swung down + swing arcs + impact debris — during a hit). Show pants + exactly one
+    // position, never both. On a line-clear he is the ONLY character that reacts.
+    hitter(p) { poseMany('hitter', 3, p === 'off' ? [] : p === 'hit' ? [1, 3] : [1, 2]); },
+    swinger(p) {
+      for (let i = 0; i <= 9; i++) show('swinger' + i, false);
+      show('swingerHitHead', false);
+      if (p === 'off') return;
+      // Fail-sequence poses (per Peter's segment map):
+      //   swinger5 = the pusher's push-arm (green); swingerHitHead = the swinger's
+      //   tilted (hit) head (red), split off swinger5 so the arm can stay while the
+      //   head hides. swinger8 = swinger body; swinger6 = pusher body; swinger9 = fallen.
+      // HIT: pusher shoves — pusher body + arm + hit head + the swinger's body.
+      if (p === 'push') { for (const k of [5, 6, 8]) show('swinger' + k, true); show('swingerHitHead', true); return; }
+      // FALL: swinger flat on the ground; pusher body + the arm still extended (head gone).
+      if (p === 'fall') { for (const k of [5, 6, 9]) show('swinger' + k, true); return; }
+      // Normal swing 1..4: the swinging case + the pusher standing by (body + food-arm).
+      // At pos-4 the head (swinger4) is paired with the body (swinger8).
+      for (const k of SWING_BODY) show('swinger' + k, true);
+      show('swinger' + p, true);                                // case at position 1..4
+      if (p === 4) show('swinger8', true);
+    },
+    // The demo/clock pendulum: just the swinging case — NO pusher (6/7).
+    pendulum(p) {
+      for (let i = 0; i <= 9; i++) show('swinger' + i, false);
+      show('swingerHitHead', false);
+      if (p === 'off') return;
+      show('swinger' + p, true);
+      if (p === 4) show('swinger8', true);
+    },
+    sound(name) { Beep.play(name); },
+    gameOver(info) { UI.gameOver(info); },
+  };
+}
+// swinger part groupings:
+//   1..4 = the swinging figure (fused body+swing+head); 8 = extra lower case at
+//   pos-4 and the fallen swinger on 'fall'; 9 = alt toppled/fallen swinger; 0 = pie.
+//   swingerFace = the separate BLUE turned/hit head, shown in the 'push' pose in
+//   place of swinger1's clipped-away green head (clipPath #sw1NoHead).
+//   Pusher: 6 = body, 7 = food-arm (both shown while swinging), 5 = push-arm.
+const SWING_BODY = [6, 7];
+
+/* ------------------------------------------------------------------ *
+ *  Minimal WebAudio blip bank (our own cues; no audio assets shipped)
+ * ------------------------------------------------------------------ */
+const Beep = (() => {
+  let ctx, muted = false;
+  const tones = {
+    step:   [180, 0.03, 'square'], shift: [240, 0.03, 'square'],
+    rotate: [420, 0.05, 'square'], drop:  [140, 0.04, 'sawtooth'],
+    land:   [110, 0.07, 'triangle'], deal: [520, 0.05, 'square'],
+    points1:[660, 0.10, 'square'], points2:[880, 0.16, 'square'],
+    miss:   [90,  0.30, 'sawtooth'],
+  };
+  function play(name) {
+    if (muted) return;
+    const t = tones[name]; if (!t) return;
+    ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
+    if (ctx.state === 'suspended') ctx.resume();   // unlock once a gesture has occurred
+    const [f, d, type] = t;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = type; o.frequency.value = f;
+    g.gain.value = 0.06; g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + d);
+    o.connect(g).connect(ctx.destination); o.start(); o.stop(ctx.currentTime + d);
+  }
+  return { play, toggle() { muted = !muted; return muted; } };
+})();
+
+/* ------------------------------------------------------------------ *
+ *  Boot: inline the SVG, wire engine + controls + rAF loop
+ * ------------------------------------------------------------------ */
+const UI = {};
+(async function boot() {
+  const topHost = document.getElementById('topSeg');
+  const botHost = document.getElementById('botSeg');
+  let display, game;
+
+  async function inline(host, file) {
+    const txt = await (await fetch(file)).text();
+    host.innerHTML = txt;
+    return host.querySelector('svg');
+  }
+
+  let topSvg, botSvg;
+  try {
+    [topSvg, botSvg] = await Promise.all([
+      inline(topHost, 'sprites-top.svg'),
+      inline(botHost, 'sprites-bottom.svg'),
+    ]);
+    // Fill each screen exactly (no letterbox) so the segments line up with the
+    // printed background scenery behind them.
+    topSvg.setAttribute('preserveAspectRatio', 'none');
+    botSvg.setAttribute('preserveAspectRatio', 'none');
+  } catch (e) {
+    topHost.textContent = 'Could not load sprite sheets — serve this folder over http (see serve.mjs).';
+    return;
+  }
+
+  display = makeDisplay(topSvg, botSvg);
+  game = new TetrisJr(display);
+  window.game = game; // dev hook for testing
+
+  UI.gameOver = (_info) => {
+    // A real LCD unit has no "game over" menu — the screen just holds the final
+    // frame (the toppled swinger / topped-out board). No overlay; the player
+    // presses GAME A or GAME B to start again.
+  };
+
+  // Starting a real game (or returning to the attract) always clears the play
+  // features (unpause, close the save grid, stop/clear rewind history) so state
+  // never leaks across games. tjResetFeatures is defined in the features module
+  // below (hoisted); it is only ever called at user-interaction time.
+  function startMode(m) { game.start(m); tjResetFeatures(); }
+  function toDemo() { game.startDemo(); tjResetFeatures(); }
+
+  // Attract/demo embed: the catalogue tile + drawer load this page with ?demo=1
+  // to show our live device auto-playing (silent) with the clock. No controls
+  // are wired in this mode, so nothing can start a real game over the top of it.
+  const DEMO = new URLSearchParams(location.search).has('demo');
+  if (DEMO) {
+    document.body.classList.add('demo');
+    // html carries the page's dark radial background too; clear it so the host's
+    // real device artwork shows through behind this transparent screens overlay.
+    document.documentElement.style.background = 'transparent';
+    // :root color-scheme:dark makes the browser paint an OPAQUE dark canvas
+    // backdrop for the iframe even with transparent bg — neutralise it so the
+    // frame is truly see-through onto the artwork.
+    document.documentElement.style.colorScheme = 'normal';
+    game.startDemo();
+    // main loop (below) drives it; no input handlers bound in demo.
+    let last = performance.now();
+    (function frame(now) { const dt = (now - last) / 1000; last = now; game.update(dt); requestAnimationFrame(frame); })(last);
+    return;
+  }
+
+  // Playable: idle to the ATTRACT DEMO like a real unit on a shelf — the clock
+  // showing WITH the game auto-playing (silent). GAME A / GAME B start a real
+  // game; TIME returns to the demo.
+  game.startDemo();
+
+  // Which on-device hotspot lights for a given game action (keyboard mirrors it).
+  const HOT_FOR = { left: 'hot-left', right: 'hot-right', rotate: 'hot-up', drop: 'hot-down' };
+  const flash = (id, on) => { const el = id && document.getElementById(id); if (el) el.classList.toggle('pressed', on); };
+
+  // Left/Right and Down are *held* controls. Press sets the state, release
+  // clears it — the continuous repeat (stack-shift auto-repeat, soft-drop
+  // cadence) lives inside the engine's update loop, decoupled from browser and
+  // input-event timing. That keeps the motion smooth and, crucially, never
+  // stalls it waiting on the frame loop or the gap between pieces. Shared by
+  // keyboard + pointer.
+  const SHIFT = { left: -1, right: 1 };
+  // never leave a control stuck on if the window loses focus mid-hold
+  addEventListener('blur', () => { game.setShiftHeld(0); game.input('drop', false); });
+
+  function bind(el) {
+    const act = el.dataset.act, mode = el.dataset.mode, clock = el.dataset.clock;
+    const down = (e) => {
+      e.preventDefault();
+      el.classList.add('pressed');
+      if (mode) startMode(mode);
+      else if (clock) toDemo();                  // TIME → the attract demo (clock + auto-play)
+      else if (tjBlocked()) return;              // paused / rewinding / save grid up: swallow play input
+      else if (act in SHIFT) game.setShiftHeld(SHIFT[act]);   // hold to keep shifting
+      else if (act) game.input(act, true);      // 'drop' press starts the soft-drop
+    };
+    const up = (e) => {
+      if (e) e.preventDefault();
+      el.classList.remove('pressed');
+      if (act in SHIFT) game.setShiftHeld(0);
+      else if (act === 'drop') game.input('drop', false);
+    };
+    el.addEventListener('pointerdown', down);
+    el.addEventListener('pointerup', up);
+    el.addEventListener('pointerleave', up);
+    el.addEventListener('pointercancel', up);
+  }
+  document.querySelectorAll('.hot').forEach(bind);
+
+  // keyboard — kept in step with the site's other Game & Watch titles
+  // (gnw.js KEY_TO_BUTTON): arrows OR Q/E shift the stack, ↑/Space rotate,
+  // ↓ drop, and 1 / 2 / 3 = Game A / Game B / Time. Each also lights the
+  // matching on-device button.
+  const KEYS = {
+    ArrowLeft:'left',   KeyQ:'left',
+    ArrowRight:'right', KeyE:'right',
+    ArrowUp:'rotate',   Space:'rotate',
+    ArrowDown:'drop',
+  };
+  addEventListener('keydown', (e) => {
+    if (e.code === 'Digit1') { startMode('A'); flash('hot-a', true);    setTimeout(() => flash('hot-a', false), 130); return; }
+    if (e.code === 'Digit2') { startMode('B'); flash('hot-b', true);    setTimeout(() => flash('hot-b', false), 130); return; }
+    if (e.code === 'Digit3') { toDemo();       flash('hot-time', true); setTimeout(() => flash('hot-time', false), 130); return; }
+    if (e.code === 'Minus' || e.code === 'NumpadSubtract') { tjToggleMute(); return; }
+    if (e.code === 'Escape' && tjKeysOpen) { e.preventDefault(); tjCloseKeys(); return; }
+    if (e.code === 'Escape' && tjGridOpen) { e.preventDefault(); tjCloseSaves(); return; }
+    if (e.code === 'KeyP') { e.preventDefault(); tjTogglePause(); return; }
+    // Ctrl+← = rewind (hold), matching the standard play modal. Must be caught
+    // before the plain-← shift handler below.
+    if (e.code === 'ArrowLeft' && e.ctrlKey) { e.preventDefault(); tjStartRewind(); return; }
+    const act = KEYS[e.code];
+    if (!act) return;
+    e.preventDefault();
+    if (e.repeat) return;                  // held state is set on keydown/keyup; the engine repeats
+    if (tjBlocked()) return;               // paused / rewinding / save grid up: swallow play input
+    if (act in SHIFT) game.setShiftHeld(SHIFT[act]);   // hold to keep shifting
+    else game.input(act, true);
+    flash(HOT_FOR[act], true);
+  });
+  addEventListener('keyup', (e) => {
+    // Releasing ← or Ctrl ends a rewind (like releasing the ◄◄ button).
+    if (tjRewinding && (e.code === 'ArrowLeft' || e.code === 'ControlLeft' || e.code === 'ControlRight')) tjStopRewind();
+    const act = KEYS[e.code];
+    if (!act) return;
+    if (act in SHIFT) game.setShiftHeld(0);
+    else if (act === 'drop') game.input('drop', false);
+    flash(HOT_FOR[act], false);
+  });
+
+  // Keep keyboard focus inside the play window so ↑/↓ (and the other keys) drive
+  // the game rather than scrolling the host page — this page runs in an iframe, so
+  // it must hold focus to receive keydowns (its handler preventDefaults the arrows).
+  // Grab focus on load and on any tap inside the window.
+  const _focusEl = document.getElementById('device');
+  _focusEl.tabIndex = -1; _focusEl.style.outline = 'none';
+  const grabFocus = () => { try { window.focus(); _focusEl.focus({ preventScroll: true }); } catch (_) {} };
+  grabFocus();
+  addEventListener('pointerdown', grabFocus, true);
+
+  /* ================================================================== *
+   *  Play features: Pause, Rewind (◄◄ / Ctrl+←), Save/Load slot grid.
+   *  Entirely self-contained in this iframe — mirrors the standard gnw
+   *  play modal's UX but touches nothing in the parent page.
+   * ================================================================== */
+  let last = performance.now();                 // main-loop clock (features reset it on resume)
+  let tjPaused = false, tjRewinding = false, tjGridOpen = false, tjKeysOpen = false, tjRewRaf = null;
+  const tjBlocked = () => tjPaused || tjRewinding || tjGridOpen || tjKeysOpen;
+  const _byId = (id) => document.getElementById(id);
+
+  // A game is genuinely being played (not the attract loop) — pause/rewind/save
+  // only apply then.
+  const tjRealGame = () => (game.mode === 'A' || game.mode === 'B') && !game._demo;
+
+  // Rewind ring: ~40s of history at 60fps, pre-allocated (see engine RewindRing).
+  const REW_CAP = 2400, REW_STEP = 6;           // step: frames rewound per tick (~6x reverse)
+  const rew = game.createRewind(REW_CAP);
+
+  // ---- Pause --------------------------------------------------------------
+  const _PAUSE_ICO = '<svg viewBox="0 0 24 24"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>';
+  const _PLAY_ICO  = '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+  function tjTogglePause() { tjSetPause(!tjPaused); }
+  function tjSetPause(on) {
+    if (tjRewinding || tjGridOpen || tjKeysOpen) return;   // not while scrubbing or under an overlay
+    tjPaused = on;
+    if (on) { game.setShiftHeld(0); game.input('drop', false); }   // freeze held inputs
+    else last = performance.now();              // no dt jump on resume
+    tjSyncPauseBtn();
+  }
+  function tjSyncPauseBtn() {
+    _byId('tj-pause-ico').innerHTML = tjPaused ? _PLAY_ICO : _PAUSE_ICO;
+    _byId('tj-pause-lbl').textContent = tjPaused ? 'Resume' : 'Pause';
+    _byId('tj-pause').classList.toggle('active', tjPaused);
+    _byId('tj-pause').setAttribute('aria-pressed', tjPaused ? 'true' : 'false');
+    _byId('tj-paused').style.display = tjPaused ? 'flex' : 'none';
+  }
+
+  // ---- Rewind -------------------------------------------------------------
+  function tjStartRewind() {
+    // Engage whenever there's history (>=2 snapshots) and we're not otherwise
+    // blocked — no longer gated to real gameplay, so the clock/time screen (which
+    // now also builds history) can scrub back too, matching the other devices.
+    if (tjRewinding || tjPaused || tjGridOpen || tjKeysOpen || rew.size < 2) return;
+    tjRewinding = true;
+    game.setShiftHeld(0); game.input('drop', false);
+    _byId('device').classList.add('tj-rewinding');
+    _byId('tj-rewind').classList.add('active');
+    _byId('tj-rew-hud').style.display = 'block';
+    addEventListener('blur', tjStopRewind, { once: true });   // never stick on alt-tab
+    tjRewTick();
+  }
+  function tjRewTick() {
+    if (!tjRewinding) return;
+    for (let i = 0; i < REW_STEP; i++) { if (!rew.stepBack()) break; }
+    rew.restore();
+    _byId('tj-rew-hud').textContent = '◄◄ REW ' + (rew.steps / 60).toFixed(1) + 's';
+    tjRewRaf = requestAnimationFrame(tjRewTick);
+  }
+  function tjStopRewind() {
+    if (!tjRewinding) return;
+    tjRewinding = false;
+    if (tjRewRaf) { cancelAnimationFrame(tjRewRaf); tjRewRaf = null; }
+    removeEventListener('blur', tjStopRewind);
+    rew.commit();                               // resume from here, drop the rewound-past future
+    _byId('device').classList.remove('tj-rewinding');
+    _byId('tj-rewind').classList.remove('active');
+    _byId('tj-rew-hud').style.display = 'none';
+    last = performance.now();
+  }
+
+  // ---- Save / Load --------------------------------------------------------
+  const SAVE_KEY = 'tetrisjr.saves.tr66', SAVE_SLOTS = 12;
+  let _toastT = null;
+  function tjLoadSaves() { try { const a = JSON.parse(localStorage.getItem(SAVE_KEY) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+  function tjPersist(arr) { try { localStorage.setItem(SAVE_KEY, JSON.stringify(arr)); } catch (e) {} }
+  function tjToast(msg) { const t = _byId('tj-toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(_toastT); _toastT = setTimeout(() => t.classList.remove('show'), 1400); }
+  function tjFlash() {                           // brief bright pulse on the glass to acknowledge a load
+    document.querySelectorAll('.lcd-bg').forEach(el => {
+      el.style.transition = 'none'; el.style.filter = 'brightness(1.8)';
+      requestAnimationFrame(() => { el.style.transition = 'filter .45s'; el.style.filter = 'none'; setTimeout(() => { el.style.transition = ''; }, 500); });
+    });
+  }
+  // A small schematic LCD thumbnail rendered from the live grid (chute + bin,
+  // incl. the falling piece) — no SVG rasterisation needed, fully self-contained.
+  function tjThumb() {
+    const st = game.getState(), G = TetrisJr.GEOMETRY, SH = TetrisJr.SHAPES;
+    const cells = st.grid.map(r => r.slice());
+    if (st.piece) {
+      const m = SH[st.piece.shape][st.piece.orient];
+      for (let b = 0; b < 4; b++) for (let c = 0; c < 4; c++) {
+        if (m[b][c] === ' ') continue;
+        const r = st.piece.row + b, col = c + G.PIECE_OFFSET;
+        if (r >= 0 && r < G.ROWS && col >= 0 && col < G.COLS) cells[r][col] = true;
+      }
+    }
+    const cs = 6, cv = document.createElement('canvas'); cv.width = 80; cv.height = 118;
+    const x = cv.getContext('2d');
+    x.fillStyle = '#9db4aa'; x.fillRect(0, 0, cv.width, cv.height);   // polariser green field
+    x.fillStyle = '#12180d';
+    const chOffX = 28, chOffY = 3;
+    for (let r = G.CHUTE_TOP; r <= G.CHUTE_BOT; r++) for (let c = 0; c < 4; c++)
+      if (cells[r][c + G.PIECE_OFFSET]) x.fillRect(chOffX + c * cs, chOffY + r * cs, cs - 1, cs - 1);
+    const binOffY = chOffY + 10 * cs + 4;
+    for (let r = G.BIN_TOP; r <= G.BIN_BOT; r++) for (let c = 0; c < 12; c++)
+      if (cells[r][c + G.BIN_LEFT]) x.fillRect(4 + c * cs, binOffY + (r - G.BIN_TOP) * cs, cs - 1, cs - 1);
+    try { return cv.toDataURL('image/png'); } catch (e) { return ''; }
+  }
+  function tjFmt(ts) { if (!ts) return ''; const d = new Date(ts); return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }); }
+  function tjOpenSaves() {
+    if (tjRewinding) tjStopRewind();
+    if (tjKeysOpen) tjCloseKeys(true);   // mutually exclusive
+    tjGridOpen = true;
+    const ov = _byId('tj-saves'); ov.style.display = 'flex'; ov.setAttribute('aria-hidden', 'false');
+    tjRenderSaves();
+    tjSetToolbar('back', 'Save slots');
+  }
+  function tjCloseSaves(silent) {
+    tjGridOpen = false;
+    const ov = _byId('tj-saves'); ov.style.display = 'none'; ov.setAttribute('aria-hidden', 'true');
+    tjSetToolbar('game', null, silent);
+    last = performance.now(); grabFocus();
+  }
+  // A "game" object for the SHARED keys engine — hotspots (in an abstract, already
+  // true-proportioned % space, so we pass ar:1) that the engine folds into the
+  // DK-52-style diagram: btn1-4 form the D-pad cross (arrow keys), 'jump' is the
+  // Space action (relabelled "Rotate" via meta), and gameA/gameB/time become the
+  // operational pill column. Diagram DATA only — never touches gameplay.
+  const TJ_KEYS_GAME = { hotspots: {
+    // Mirrors DK-52's control geometry so the engine produces the same portrait
+    // arrangement: Game A/B/Time pill column TOP-RIGHT, D-pad BOTTOM-LEFT, the
+    // Space (Rotate) action BOTTOM-RIGHT.
+    gameA:{ left:60, top:6,  width:16, height:7  },
+    gameB:{ left:60, top:18, width:16, height:7  },
+    time: { left:60, top:30, width:16, height:7  },
+    btn2: { left:16, top:60, width:8,  height:8  },   // up
+    btn4: { left:16, top:80, width:8,  height:8  },   // down
+    btn3: { left:6,  top:70, width:8,  height:8  },   // left
+    btn1: { left:26, top:70, width:8,  height:8  },   // right
+    jump: { left:58, top:70, width:14, height:14 },   // Space → Rotate
+  } };
+  // Controls screen — rendered by the SHARED engine (window.KeysDiagram), exactly
+  // as the main site renders #play-keys-panel, so it's DK-52-identical.
+  function tjOpenKeys() {
+    if (tjRewinding) tjStopRewind();
+    if (tjGridOpen) tjCloseSaves(true);   // mutually exclusive
+    tjKeysOpen = true;
+    const ov = _byId('tj-keys'); ov.style.display = 'flex'; ov.setAttribute('aria-hidden', 'false');
+    if (window.KeysDiagram) {
+      window.KeysDiagram.render(ov, {
+        game: TJ_KEYS_GAME, gameKey: 'tetrisjr', ar: 1,
+        meta: { jump: { label: 'Rotate', keys: ['Space'] } },
+        extra: '<span><b>P</b> Pause</span><span><b>−</b> Mute</span><span><b>Ctrl</b>+<b>←</b> Rewind</span>'
+      });
+      window.KeysDiagram.fit(ov);
+      window.KeysDiagram.attachInput(ov);
+    }
+    tjSetToolbar('back', 'Controls');
+  }
+  function tjCloseKeys(silent) {
+    tjKeysOpen = false;
+    if (window.KeysDiagram) window.KeysDiagram.detachInput();
+    const ov = _byId('tj-keys'); ov.style.display = 'none'; ov.setAttribute('aria-hidden', 'true');
+    tjSetToolbar('game', null, silent);
+    last = performance.now(); grabFocus();
+  }
+  addEventListener('resize', function(){ if (tjKeysOpen && window.KeysDiagram) window.KeysDiagram.fit(_byId('tj-keys')); });
+  // Toolbar Back — returns from whichever sub-screen is open.
+  function tjBack() {
+    if (tjGridOpen) tjCloseSaves();
+    else if (tjKeysOpen) tjCloseKeys();
+    else tjSetToolbar('game');
+  }
+  // Morph the pill between the controls state and the compact "← <title>" Back
+  // state, tweening an explicit px width (FLIP-style: read current width, flip the
+  // .sub-open class, read target width, animate old->new). `silent`/reduced-motion
+  // skips the tween. Mirrors the DK-52 pill's _gnwSetPill.
+  function tjSetToolbar(mode, title, instant) {
+    const pill = _byId('tj-toolbar'); if (!pill) return;
+    const back = mode === 'back';
+    if (title != null) _byId('tj-back-lbl').textContent = title;
+    let reduce = false; try { reduce = matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
+    if (pill.classList.contains('sub-open') === back) return;
+    if (instant || reduce) { pill.style.width = ''; pill.classList.toggle('sub-open', back); return; }
+    const from = pill.getBoundingClientRect().width;
+    pill.style.width = 'auto';
+    pill.classList.toggle('sub-open', back);
+    const to = pill.getBoundingClientRect().width;
+    pill.style.width = from + 'px';
+    void pill.offsetWidth;                     // force reflow so the next set animates
+    pill.style.width = to + 'px';
+    const done = () => { pill.style.width = ''; pill.removeEventListener('transitionend', done); };
+    clearTimeout(pill._t); pill._t = setTimeout(done, 360);
+    pill.addEventListener('transitionend', done);
+  }
+  // Mute — reuses Beep.toggle() (also bound to the "−" key). Shows 🔊/🔇 + active.
+  function tjToggleMute() { tjSyncMuteBtn(Beep.toggle()); }
+  function tjSyncMuteBtn(muted) {
+    _byId('tj-mute-ico').textContent = muted ? '🔇' : '🔊';
+    _byId('tj-mute').classList.toggle('active', muted);
+    _byId('tj-mute').setAttribute('aria-pressed', muted ? 'true' : 'false');
+  }
+  // Single-model save grid (mirrors the G&W devices): a blank slot is a dashed
+  // "+" that saves on click; an occupied slot expands on click into Load /
+  // Delete + a notes field. No Save/Load mode toggle.
+  function tjRenderSaves() {
+    const arr = tjLoadSaves(), grid = _byId('tj-saves-grid'); grid.innerHTML = '';
+    for (let i = 0; i < SAVE_SLOTS; i++) {
+      const s = arr[i] || null;
+      const slot = document.createElement('div');
+      slot.className = 'tj-slot' + (s ? '' : ' empty');
+      if (!s) {
+        slot.innerHTML =
+          '<div class="thumb"><span class="plus">+</span></div>' +
+          '<div class="meta"><span class="num">' + (i + 1) + '</span><span>Save here</span></div>';
+        slot.addEventListener('click', () => tjDoSave(i));
+      } else {
+        slot.innerHTML =
+          '<div class="thumb">' + (s.thumb ? '<img src="' + s.thumb + '" alt="">' : '') + '</div>' +
+          '<div class="meta"><span class="num">' + (i + 1) + '</span><span>' + tjFmt(s.ts) + (s.label ? (' · ' + s.label) : '') + '</span></div>' +
+          '<div class="detail"><div class="pad">' +
+            '<div class="acts"><button type="button" class="load">▶ Load</button>' +
+            '<button type="button" class="del">🗑 Delete</button></div>' +
+            '<textarea class="note" placeholder="Add a note about this save…"></textarea>' +
+          '</div></div>';
+        const noteEl = slot.querySelector('.note'); noteEl.value = s.note || '';
+        slot.addEventListener('click', (e) => {
+          if (e.target.closest('.detail')) return;   // don't collapse while using the panel
+          const open = slot.classList.contains('expanded');
+          grid.querySelectorAll('.tj-slot.expanded').forEach((x) => x.classList.remove('expanded'));
+          if (!open) slot.classList.add('expanded');
+        });
+        slot.querySelector('.load').addEventListener('click', () => tjDoLoad(s));
+        slot.querySelector('.del').addEventListener('click', () => { const a = tjLoadSaves(); a[i] = null; tjPersist(a); tjRenderSaves(); });
+        noteEl.addEventListener('input', (ev) => { const a = tjLoadSaves(); if (a[i]) { a[i].note = ev.target.value; tjPersist(a); } });
+      }
+      grid.appendChild(slot);
+    }
+  }
+  function tjDoSave(i) {
+    // Save the current state ANYTIME (clock/idle included) — matches how every
+    // other device saves; no "start a game first" restriction.
+    const arr = tjLoadSaves();
+    const label = game.mode === 'B' ? 'Game B' : game.mode === 'A' ? 'Game A' : game.mode === 'clock' ? 'Clock' : 'Idle';
+    arr[i] = { ts: Date.now(), thumb: tjThumb(), label: label, note: (arr[i] && arr[i].note) || '', state: game.serialize() };
+    tjPersist(arr); tjRenderSaves(); tjToast('Saved to slot ' + (i + 1));
+  }
+  function tjDoLoad(s) {
+    if (!s || !s.state) return;
+    if (!game.deserialize(s.state)) { tjToast('Save incompatible'); return; }
+    rew.reset(); tjPaused = false; tjSyncPauseBtn();
+    tjCloseSaves(); tjFlash(); tjToast('Loaded');
+  }
+
+  // Clear all feature state (called on starting/leaving a game).
+  function tjResetFeatures() {
+    if (tjRewinding) tjStopRewind();
+    if (tjGridOpen) tjCloseSaves(true);
+    if (tjKeysOpen) tjCloseKeys(true);
+    tjPaused = false; tjSyncPauseBtn();
+    rew.reset();
+  }
+
+  // ---- Toolbar wiring -----------------------------------------------------
+  _byId('tj-save').addEventListener('click', () => tjOpenSaves());
+  _byId('tj-pause').addEventListener('click', tjTogglePause);
+  _byId('tj-keys-btn').addEventListener('click', tjOpenKeys);
+  const _rewBtn = _byId('tj-rewind');
+  _rewBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); tjStartRewind(); });
+  _rewBtn.addEventListener('pointerup', tjStopRewind);
+  _rewBtn.addEventListener('pointerleave', tjStopRewind);
+  _rewBtn.addEventListener('pointercancel', tjStopRewind);
+  _byId('tj-mute').addEventListener('click', tjToggleMute);
+  _byId('tj-back').addEventListener('click', tjBack);
+  tjSyncPauseBtn();
+
+  // ---- Main loop (gated by pause / rewind / save grid) --------------------
+  function frame(now) {
+    const dt = (now - last) / 1000; last = now;
+    if (!tjPaused && !tjRewinding && !tjGridOpen && !tjKeysOpen) {
+      game.update(dt);
+      // Capture on EVERY live (non-blocked) frame — real gameplay AND the clock/
+      // time screen — so rewind can scrub whenever there's history, like the other
+      // devices. (The pure ?demo=1 attract embed returns early above and never runs
+      // this loop, so it never captures.)
+      rew.capture();
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

@@ -6,14 +6,20 @@
 
  WHAT THIS DOES
    Scans a folder (recursively, including inside .zip/.7z/.rar archives) for the
-   content the emulator needs and rebuilds three things next to the site, so the
+   content the emulator needs and rebuilds four things next to the site, so the
    distributed source can ship CODE ONLY and none of Nintendo's data:
 
      1. firmware/gnw_roms.json     - the 59 classic ROMs (SM5A/510/511/512),
                                      identified by SHA-256 CONTENT HASH.
-     2. firmware/artwork.json.gz   - the 71 LCD segment-artwork SVGs, also
+     2. firmware/pokemini_roms.json- the 10 Pokemon mini ROMs (~512 KB each) plus
+                                     the shared 4 KB BIOS ('bios'), by SHA-256
+                                     hash. Kept in its OWN file (not gnw_roms.json)
+                                     so the big PM ROMs are lazy-loaded only when a
+                                     PM game is launched. Also picks up staged
+                                     *.min dumps in the firmware/ folder itself.
+     3. firmware/artwork.json.gz   - the 71 LCD segment-artwork SVGs, also
                                      identified by SHA-256 hash, gzip'd.
-     3. play/<unit>/firmware_*.js  - the two colour (TFT) units' firmware.
+     4. play/<unit>/firmware_*.js  - the two colour (TFT) units' firmware.
                                      These are NOT hashed: the STM32 flash is
                                      encrypted differently on every physical
                                      device, so bytes never match between dumps.
@@ -61,8 +67,14 @@ $TftExtZelda  = 4194304         # colour-unit external flash - Zelda
 $Root         = Split-Path $PSScriptRoot -Parent
 $OutRoms      = Join-Path $PSScriptRoot 'gnw_roms.json'
 $OutArt       = Join-Path $PSScriptRoot 'artwork.json.gz'
+$OutPokemini  = Join-Path $PSScriptRoot 'pokemini_roms.json'   # Pokemon mini ROMs + shared BIOS (base64, id-keyed)
 $OutTft       = @{ mario = (Join-Path $Root 'play\mario\firmware_mario.js');
                    zelda = (Join-Path $Root 'play\zelda\firmware_zelda.js') }
+
+# Pokemon mini content sizes (recognised by content hash, like the classic ROMs).
+# The 10 game ROMs are 512 KB Game Paks; the shared BIOS is a 4 KB dump.
+$PmRomBytes   = 524288
+$PmBiosBytes  = 4096
 # -----------------------------------------------------------------------------
 
 $ErrorActionPreference = 'Stop'
@@ -273,6 +285,59 @@ $SvgRows = $SvgHashJson | ConvertFrom-Json
 $SvgByHash = @{}
 foreach ($s in $SvgRows) { $SvgByHash[$s.sha256.ToLower()] = $s.path }
 
+# ---- Pokemon mini identity table:  SHA-256 (whole-file) -> {PM device id, lang}.
+# The 10 game ROMs are 512 KB; the shared BIOS ('bios') is 4 KB. Matched purely
+# by content hash, exactly like the classic ROMs - dump filenames are irrelevant.
+#
+# Unlike Game & Watch (language-agnostic), Pokemon mini titles are region/
+# language-specific, so a game may list MANY hashes, one per language dump. Each
+# carries a `lang` key; the manifest groups them as {device:{lang:base64}} and
+# the play screen shows a language picker when >1 is present. Language keys:
+#   en / en-us / en-eu = English (official; -us/-eu disambiguate when a title has
+#   both), en-fan = English fan-translation (for the 3 Japan-only games we ship
+#   translated), fr = Français, de = Deutsch, ja = 日本語 (Japanese original).
+$PmHashJson = @'
+[
+{"sha256":"16b3a68bb9d3e5c577bc6cf6d9d73c39b4c40b76ca3fbf1a0b9288089f97a014","bytes":524288,"device":"pm-pichu-bros-mini","lang":"ja"},
+
+{"sha256":"7914ae74c227dd29c93fc9ee23f16da4489396cfa160d034c2394f4bcd3d06e3","bytes":524288,"device":"pm-pokemon-breeder-mini","lang":"en-fan"},
+{"sha256":"035688227eeb8f381f83e1246a10df8a99b27f63b68e548482de16da42fdb4b2","bytes":524288,"device":"pm-pokemon-breeder-mini","lang":"ja"},
+
+{"sha256":"9c6619a683f76dcb63957d02ac4e812f9148b85e05cc6705b24a8a4e6080b221","bytes":524288,"device":"pm-pokemon-party-mini","lang":"en-us"},
+{"sha256":"8f29373c5ab6363369d051d6015726a8aa37c945b85b4b43dd88a6918724eac4","bytes":524288,"device":"pm-pokemon-party-mini","lang":"en-eu"},
+{"sha256":"b3a3f78f13bf78d1983c4eeee69f1d048764918bf56b4862580db96121b0de2f","bytes":524288,"device":"pm-pokemon-party-mini","lang":"ja"},
+
+{"sha256":"5ac75fd2b6d5dea85e17e5e6131339e0e19eefe978a6f4b7f8700fb28c89cc23","bytes":524288,"device":"pm-pokemon-pinball-mini","lang":"en"},
+{"sha256":"01dda0aaf9c09f17d16b168a2d94ce62f44b35f7f1551eee93b8634435490001","bytes":524288,"device":"pm-pokemon-pinball-mini","lang":"ja"},
+
+{"sha256":"6c473867e9bad1883307d5372dedfa9443a620423d82ae83b6171fcaaffc291e","bytes":524288,"device":"pm-pokemon-puzzle-collection","lang":"en"},
+{"sha256":"6c844f44c8d29d56731fd169ed27b0f45db1fd168aa7f34b51580f45ba801a61","bytes":524288,"device":"pm-pokemon-puzzle-collection","lang":"fr"},
+{"sha256":"56614a5972d8086674a0efb09c2e27d5b28d22bb1962bb66136eb47ac354713b","bytes":524288,"device":"pm-pokemon-puzzle-collection","lang":"de"},
+{"sha256":"83655ad8252218a3c95595193830f170ef5221fad0aba3a4392565313337c4ca","bytes":524288,"device":"pm-pokemon-puzzle-collection","lang":"ja"},
+
+{"sha256":"e303afb55f858b284029abe69a7f96d58bf46956cd3e12cc3c1134e171ffae25","bytes":524288,"device":"pm-pokemon-puzzle-collection-vol-2","lang":"en-fan"},
+{"sha256":"d75dd948a0bfe92b9f712dbc61cc1fb5ef24c2ddf6a6629f4f00e0fe573f931d","bytes":524288,"device":"pm-pokemon-puzzle-collection-vol-2","lang":"ja"},
+
+{"sha256":"bc5d1c0664d0f80900558f1e99dded5fe597535b468aefc13c1dae51c18b4fbb","bytes":524288,"device":"pm-pokemon-race-mini","lang":"ja"},
+
+{"sha256":"b54fc57472d363111eb0b229b5e26d3eb653c1b85f211501beab640530d19805","bytes":524288,"device":"pm-pokemon-shock-tetris","lang":"en"},
+{"sha256":"f92858c1d895a645401bed70e6984d7884e571e185341591331154221c186a26","bytes":524288,"device":"pm-pokemon-shock-tetris","lang":"ja"},
+
+{"sha256":"dc96d606ed54be035e8c3139a0b20d462b7622b15f617ccc6be411dcbd68c921","bytes":524288,"device":"pm-pokemon-zany-cards","lang":"en"},
+{"sha256":"362289ee8914b6b1ec07cbdd7da3f18d5b160c62295cf3ba2b96cfce4c090fa7","bytes":524288,"device":"pm-pokemon-zany-cards","lang":"fr"},
+{"sha256":"4b186ffb78f2c5f3cda7eb40faeea39c392dcbb5d42fef6ba2881da3f4c30d59","bytes":524288,"device":"pm-pokemon-zany-cards","lang":"de"},
+{"sha256":"7bfc02b080b7aa85a86fc643fd8269e3347faf9724126aaf7cc563380a3eb82b","bytes":524288,"device":"pm-pokemon-zany-cards","lang":"ja"},
+
+{"sha256":"19265776c8aa438a20a18064fa4097c33ba8edf9d4b712c73e3fd431bd724187","bytes":524288,"device":"pm-togepis-great-adventure","lang":"en-fan"},
+{"sha256":"9f34277ae054e8aca6355bc3f73548d860a8ea377103752d403ab150fcc80802","bytes":524288,"device":"pm-togepis-great-adventure","lang":"ja"},
+
+{"sha256":"45a1c7f28b9ad585e67f047abe9c1c956724bfcab8c9011002af4274e7c50e8f","bytes":4096,"device":"bios"}
+]
+'@
+$PmRows = $PmHashJson | ConvertFrom-Json
+$PmByHash = @{}
+foreach ($p in $PmRows) { $PmByHash[$p.sha256.ToLower()] = $p }   # hash -> row (device + optional lang)
+
 # -------------------------------- helpers ------------------------------------
 $sha = [System.Security.Cryptography.SHA256]::Create()
 function Get-HashHex([byte[]]$bytes, [int]$len) {
@@ -285,6 +350,7 @@ function Get-HashHex([byte[]]$bytes, [int]$len) {
 }
 
 $Result    = [ordered]@{}                                   # device -> @{ rom=b64; melody=b64 }
+$PmResult  = [ordered]@{}                                   # pm-id / 'bios' -> b64 (whole file)
 $Artwork   = @{}                                            # svgPath -> svg text
 $TftCand   = @{}                                            # container -> ArrayList of @{ size; bytes }
 $Unmatched = New-Object System.Collections.ArrayList
@@ -295,6 +361,7 @@ function Should-Read([string]$name, [long]$len) {
   $ext = [System.IO.Path]::GetExtension($name).ToLower()
   if ($ext -eq '.svg') { return ($len -le $MaxSvgBytes) }
   if ($len -eq $TftInternal -or $len -eq $TftExtMario -or $len -eq $TftExtZelda) { return $true }
+  if ($len -eq $PmRomBytes -or $len -eq $PmBiosBytes) { return $true }   # Pokemon mini ROM / BIOS
   if ($len -le $MaxRomBytes) { return $true }
   return $false
 }
@@ -304,6 +371,34 @@ function Consider([byte[]]$bytes, [string]$name, [string]$origin, [string]$conta
   $len = $bytes.Length
   if ($len -eq 0) { return }
   $ext = [System.IO.Path]::GetExtension($name).ToLower()
+
+  # 0) Pokemon mini ROM / BIOS (whole-file hash). Runs first so the 4 KB BIOS is
+  #    caught here and not mistaken for a classic ROM candidate below.
+  if ($len -eq $PmRomBytes -or $len -eq $PmBiosBytes) {
+    $h = Get-HashHex $bytes $len
+    if ($PmByHash.ContainsKey($h)) {
+      $row = $PmByHash[$h]
+      $id  = $row.device
+      $b64 = [System.Convert]::ToBase64String($bytes, 0, $len)
+      if ($id -eq 'bios') {
+        if (-not $PmResult.Contains('bios')) {
+          $PmResult['bios'] = $b64
+          Write-Host ("  pmini  {0,-34} {1,-6}<- {2}  [{3}]" -f $id, '', $name, $origin) -ForegroundColor Green
+        }
+      } else {
+        # Games group by language: {device:{lang:base64}}. 'default' if untagged.
+        $lang = if ($row.PSObject.Properties['lang'] -and $row.lang) { [string]$row.lang } else { 'default' }
+        if (-not $PmResult.Contains($id)) { $PmResult[$id] = [ordered]@{} }
+        if (-not $PmResult[$id].Contains($lang)) {
+          $PmResult[$id][$lang] = $b64
+          Write-Host ("  pmini  {0,-34} {1,-6}<- {2}  [{3}]" -f $id, $lang, $name, $origin) -ForegroundColor Green
+        }
+      }
+      return
+    }
+    if ($len -eq $PmRomBytes) { [void]$Unmatched.Add(("{0}  ({1} bytes)  [{2}]" -f $name, $len, $origin)); return }
+    # a 4 KB non-BIOS file falls through to the classic-ROM path below
+  }
 
   # 1) Artwork SVG (whole-file hash)
   if ($ext -eq '.svg') {
@@ -361,7 +456,7 @@ if (-not $SevenZip) { $c = Get-Command 7z.exe -ErrorAction SilentlyContinue; if 
 # 1) Refuse to run over a previous build. The website must be cleaned first
 #    (Source\clean_website.ps1) so the rebuild is deterministic and nothing
 #    stale is left behind. Show the FULL PATH of anything already present.
-$AllOutputs = @($OutRoms, $OutArt, $OutTft.mario, $OutTft.zelda)
+$AllOutputs = @($OutRoms, $OutArt, $OutPokemini, $OutTft.mario, $OutTft.zelda)
 $existing = @($AllOutputs | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf })
 if ($existing.Count) {
   Write-Host ""
@@ -432,6 +527,16 @@ foreach ($f in (Get-ChildItem -LiteralPath $SourceFolder -Recurse -File -ErrorAc
     Consider ([System.IO.File]::ReadAllBytes($f.FullName)) $f.Name 'loose' $f.DirectoryName
   }
 }
+
+# Also sweep the firmware folder itself for staged Pokemon mini dumps (*.min /
+# bios.min). The .gitignore keeps these local-only; this is where they are meant
+# to sit for a build (see the .min note in .gitignore). Anything already found in
+# $SourceFolder wins (Consider dedups by id), so this is purely additive.
+foreach ($f in (Get-ChildItem -LiteralPath $PSScriptRoot -File -Filter '*.min' -ErrorAction SilentlyContinue)) {
+  if (Should-Read $f.Name $f.Length) {
+    Consider ([System.IO.File]::ReadAllBytes($f.FullName)) $f.Name 'firmware' $f.DirectoryName
+  }
+}
 $sha.Dispose()
 
 # ---- pair the colour-unit flash images (internal + external in one container)
@@ -462,6 +567,10 @@ $artNeeded     = @($SvgRows | ForEach-Object { $_.path })
 $artMissing    = @($artNeeded | Where-Object { -not $Artwork.ContainsKey($_) })
 $tftNeeded     = @('mario', 'zelda')
 $tftMissing    = @($tftNeeded | Where-Object { -not $TftFound.Contains($_) })
+$pmGameNeeded  = @($PmRows | Where-Object { $_.device -ne 'bios' } | ForEach-Object { $_.device })
+$pmGameFound   = @($pmGameNeeded | Where-Object { $PmResult.Contains($_) })
+$pmGameMissing = @($pmGameNeeded | Where-Object { $_ -notin $pmGameFound })
+$pmBios        = $PmResult.Contains('bios')
 
 Write-Host ""
 Write-Host ("==== scan complete - examined {0} file(s) ====" -f $script:FileCount) -ForegroundColor Cyan
@@ -469,10 +578,13 @@ Write-Host ""
 Write-Host ("ROMs      {0,3} / {1} classic titles" -f $romFound.Count, $allDevices.Count) -ForegroundColor Green
 Write-Host ("Artwork   {0,3} / {1} segment SVGs"    -f ($artNeeded.Count - $artMissing.Count), $artNeeded.Count) -ForegroundColor Green
 Write-Host ("Colour    {0,3} / {1} TFT units ({2})" -f ($tftNeeded.Count - $tftMissing.Count), $tftNeeded.Count, (@($TftFound.Keys) -join ', ')) -ForegroundColor Green
+Write-Host ("Pkmn mini {0,3} / {1} PM ROMs   (BIOS {2})" -f $pmGameFound.Count, $pmGameNeeded.Count, ($(if ($pmBios) { 'found' } else { 'MISSING' }))) -ForegroundColor Green
 
 if ($romMissing.Count) { Write-Host ""; Write-Host ("Missing ROMs:    {0}" -f ($romMissing -join ', ')) -ForegroundColor Red }
 if ($artMissing.Count) { Write-Host ("Missing artwork: {0} SVG(s)" -f $artMissing.Count) -ForegroundColor Red }
 if ($tftMissing.Count) { Write-Host ("Missing colour:  {0}" -f ($tftMissing -join ', ')) -ForegroundColor Red }
+if ($pmGameMissing.Count) { Write-Host ("Missing PM ROMs: {0}" -f ($pmGameMissing -join ', ')) -ForegroundColor Red }
+if (-not $pmBios -and $pmGameFound.Count) { Write-Host "Missing PM BIOS: bios.min (one BIOS covers every PM game)" -ForegroundColor Red }
 if ($Unmatched.Count) {
   Write-Host ""
   Write-Host ("Unrecognised files ({0}) - not in any table:" -f $Unmatched.Count) -ForegroundColor DarkGray
@@ -481,12 +593,12 @@ if ($Unmatched.Count) {
 
 # ---------------------------- confirm + write --------------------------------
 Write-Host ""
-if ($romFound.Count -eq 0 -and $Artwork.Count -eq 0 -and $TftFound.Count -eq 0) {
+if ($romFound.Count -eq 0 -and $Artwork.Count -eq 0 -and $TftFound.Count -eq 0 -and $PmResult.Count -eq 0) {
   Write-Host "Nothing matched - nothing to build. Check `$SourceFolder." -ForegroundColor Yellow
   _Pause
   return
 }
-$answer = Read-Host ("Write gnw_roms.json ({0}), artwork.json.gz ({1}), firmware_*.js ({2}) now? [Y/N]" -f $romFound.Count, $Artwork.Count, $TftFound.Count)
+$answer = Read-Host ("Write gnw_roms.json ({0}), artwork.json.gz ({1}), firmware_*.js ({2}), pokemini_roms.json ({3}) now? [Y/N]" -f $romFound.Count, $Artwork.Count, $TftFound.Count, $PmResult.Count)
 if (-not ($answer -match '^\s*(y|yes)\s*$')) { Write-Host "Cancelled - nothing written." -ForegroundColor Yellow; _Pause; return }
 
 $utf8 = New-Object System.Text.UTF8Encoding($false)
@@ -494,6 +606,15 @@ $utf8 = New-Object System.Text.UTF8Encoding($false)
 if ($romFound.Count) {
   [System.IO.File]::WriteAllText($OutRoms, ($Result | ConvertTo-Json -Depth 5 -Compress), $utf8)
   Write-Host ("Wrote {0}  ({1} titles)" -f $OutRoms, $romFound.Count) -ForegroundColor Green
+}
+
+if ($PmResult.Count) {
+  # Map: PM device id -> {langKey -> base64 ROM} (one entry per loaded language),
+  # plus 'bios' -> base64 BIOS. Kept in its OWN file (not gnw_roms.json) because
+  # each PM ROM is ~512 KB; the site lazy-loads this only when a PM game launches
+  # and shows a language picker when a game has more than one language.
+  [System.IO.File]::WriteAllText($OutPokemini, ($PmResult | ConvertTo-Json -Depth 4 -Compress), $utf8)
+  Write-Host ("Wrote {0}  ({1} PM ROMs{2})" -f $OutPokemini, @($pmGameFound).Count, ($(if ($pmBios) { ' + BIOS' } else { '' }))) -ForegroundColor Green
 }
 
 if ($Artwork.Count) {
